@@ -2,7 +2,7 @@
 
 BaGet's SDK to interact with the [NuGet protocol](https://docs.microsoft.com/en-us/nuget/api/overview).
 
-[Package (NuGet)](https://www.nuget.org/packages/BaGet.Protocol) | Documentation | [Samples](https://github.com/loic-sharma/BaGet/tree/master/samples)
+[Package (NuGet)](https://www.nuget.org/packages/BaGet.Protocol) | [Documentation](https://loic-sharma.github.io/BaGet/tools/sdk/) | [Samples](https://github.com/loic-sharma/BaGet/tree/master/samples)
 
 ## Getting started
 
@@ -14,33 +14,78 @@ dotnet add package BaGet.Protocol
 
 ## Examples
 
-### Downloading a package
+### List Package Versions
+
+Find all versions of the `Newtonsoft.Json` package:
 
 ```csharp
-using BaGet.Protocol;
-using NuGet.Versioning;
+NuGetClient client = new NuGetClient("https://api.nuget.org/v3/index.json");
 
-var client = new NuGetClient("https://api.nuget.org/v3/index.json");
+IReadOnlyList<NuGetVersion>> versions = await client.ListPackageVersionsAsync("Newtonsoft.Json");
 
-var packageId = "Newtonsoft.Json";
-var packageVersion = new NuGetVersion("12.0.1");
+foreach (NuGetVersion version in versions)
+{
+    Console.WriteLine($"Found version: {version}");
+}
+```
 
-using (var packageStream = await client.GetPackageStreamAsync(packageId, packageVersion))
+### Download a package
+
+```csharp
+NuGetClient client = new NuGetClient("https://api.nuget.org/v3/index.json");
+
+string packageId = "Newtonsoft.Json";
+NuGetVersion packageVersion = new NuGetVersion("12.0.1");
+
+using (Stream packageStream = await client.GetPackageStreamAsync(packageId, packageVersion))
 {
     Console.WriteLine($"Downloaded package {packageId} {packageVersion}");
 }
 ```
 
-### Search for packages
+### Find Package Metadata
 
 ```csharp
-// Searches for "json" packages, including prerelease packages.
-var client = new NuGetClient("https://api.nuget.org/v3/index.json");
-var response = await client.SearchAsync("json");
+NuGetClient client = new NuGetClient("https://api.nuget.org/v3/index.json");
+
+// Find the metadata for all versions of a package.
+IReadOnlyList<PackageMetadata> items = await client.GetPackageMetadataAsync("Newtonsoft.Json");
+if (!items.Any())
+{
+    Console.WriteLine($"Package 'Newtonsoft.Json' does not exist");
+    return;
+}
+
+foreach (var metadata in items)
+{
+    Console.WriteLine($"Version: {metadata.Version}");
+    Console.WriteLine($"Listed: {metadata.Listed}");
+    Console.WriteLine($"Tags: {metadata.Tags}");
+    Console.WriteLine($"Description: {metadata.Description}");
+}
+
+// Or, find the metadata for a single version of a package.
+string packageId = "Newtonsoft.Json"
+NuGetVersion packageVersion = new NuGetVersion("12.0.1");
+
+PackageMetadata metadata = await client.GetPackageMetadataAsync(packageId, packageVersion);
+
+Console.WriteLine($"Listed: {metadata.Listed}");
+Console.WriteLine($"Tags: {metadata.Tags}");
+Console.WriteLine($"Description: {metadata.Description}");
+```
+
+### Search for packages
+
+Search for "json" packages:
+
+```csharp
+NuGetClient client = new NuGetClient("https://api.nuget.org/v3/index.json");
+SearchResponse response = await client.SearchAsync("json");
 
 Console.WriteLine($"Found {response.TotalHits} total results");
 
-foreach (var searchResult in response.Data)
+foreach (SearchResult searchResult in response.Data)
 {
     Console.WriteLine($"Found package {searchResult.Id} {searchResult.Version}");
 }
