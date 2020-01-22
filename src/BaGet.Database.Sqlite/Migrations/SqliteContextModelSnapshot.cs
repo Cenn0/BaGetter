@@ -16,7 +16,7 @@ namespace BaGet.Database.Sqlite.Migrations
             modelBuilder
                 .HasAnnotation("ProductVersion", "2.2.6-servicing-10079");
 
-            modelBuilder.Entity("BaGet.Core.Entities.Package", b =>
+            modelBuilder.Entity("BaGet.Core.Package", b =>
                 {
                     b.Property<int>("Key")
                         .ValueGeneratedOnAdd();
@@ -66,6 +66,10 @@ namespace BaGet.Database.Sqlite.Migrations
 
                     b.Property<DateTime>("Published");
 
+                    b.Property<string>("ReleaseNotes")
+                        .HasColumnName("ReleaseNotes")
+                        .HasMaxLength(4000);
+
                     b.Property<string>("RepositoryType")
                         .HasMaxLength(100);
 
@@ -99,7 +103,7 @@ namespace BaGet.Database.Sqlite.Migrations
                     b.ToTable("Packages");
                 });
 
-            modelBuilder.Entity("BaGet.Core.Entities.PackageDependency", b =>
+            modelBuilder.Entity("BaGet.Core.PackageDependency", b =>
                 {
                     b.Property<int>("Key")
                         .ValueGeneratedOnAdd();
@@ -125,7 +129,7 @@ namespace BaGet.Database.Sqlite.Migrations
                     b.ToTable("PackageDependencies");
                 });
 
-            modelBuilder.Entity("BaGet.Core.Entities.PackageType", b =>
+            modelBuilder.Entity("BaGet.Core.PackageType", b =>
                 {
                     b.Property<int>("Key")
                         .ValueGeneratedOnAdd();
@@ -148,7 +152,7 @@ namespace BaGet.Database.Sqlite.Migrations
                     b.ToTable("PackageTypes");
                 });
 
-            modelBuilder.Entity("BaGet.Core.Entities.TargetFramework", b =>
+            modelBuilder.Entity("BaGet.Core.TargetFramework", b =>
                 {
                     b.Property<int>("Key")
                         .ValueGeneratedOnAdd();
@@ -168,24 +172,24 @@ namespace BaGet.Database.Sqlite.Migrations
                     b.ToTable("TargetFrameworks");
                 });
 
-            modelBuilder.Entity("BaGet.Core.Entities.PackageDependency", b =>
+            modelBuilder.Entity("BaGet.Core.PackageDependency", b =>
                 {
-                    b.HasOne("BaGet.Core.Entities.Package", "Package")
+                    b.HasOne("BaGet.Core.Package", "Package")
                         .WithMany("Dependencies")
                         .HasForeignKey("PackageKey");
                 });
 
-            modelBuilder.Entity("BaGet.Core.Entities.PackageType", b =>
+            modelBuilder.Entity("BaGet.Core.PackageType", b =>
                 {
-                    b.HasOne("BaGet.Core.Entities.Package", "Package")
+                    b.HasOne("BaGet.Core.Package", "Package")
                         .WithMany("PackageTypes")
                         .HasForeignKey("PackageKey")
                         .OnDelete(DeleteBehavior.Cascade);
                 });
 
-            modelBuilder.Entity("BaGet.Core.Entities.TargetFramework", b =>
+            modelBuilder.Entity("BaGet.Core.TargetFramework", b =>
                 {
-                    b.HasOne("BaGet.Core.Entities.Package", "Package")
+                    b.HasOne("BaGet.Core.Package", "Package")
                         .WithMany("TargetFrameworks")
                         .HasForeignKey("PackageKey")
                         .OnDelete(DeleteBehavior.Cascade);
