@@ -15,7 +15,7 @@ namespace BaGet.Database.SqlServer.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "3.1.1")
+                .HasAnnotation("ProductVersion", "3.1.18")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128)
                 .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
 
@@ -90,8 +90,7 @@ namespace BaGet.Database.SqlServer.Migrations
 
                     b.Property<string>("ReleaseNotes")
                         .HasColumnName("ReleaseNotes")
-                        .HasColumnType("nvarchar(4000)")
-                        .HasMaxLength(4000);
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("RepositoryType")
                         .HasColumnType("nvarchar(100)")
