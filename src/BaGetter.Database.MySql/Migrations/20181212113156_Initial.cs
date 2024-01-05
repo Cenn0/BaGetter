@@ -8,6 +8,10 @@ namespace BaGetter.Database.MySql.Migrations
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            // Since Latin1 is no longer the default, we have to add it here in, so fresh migrations still run.
+            migrationBuilder.AlterDatabase()
+                .Annotation("MySql:CharSet", "latin1");
+
             migrationBuilder.CreateTable(
                 name: "Packages",
                 columns: table => new

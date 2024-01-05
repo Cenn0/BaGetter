@@ -26,5 +26,13 @@ namespace BaGetter.Database.MySql
         /// See: https://dev.mysql.com/doc/refman/8.0/en/subquery-restrictions.html
         /// </summary>
         public override bool SupportsLimitInSubqueries => false;
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            // Use the latin1 charset as default instead of the utf8mb4 to prevent the "Row size too large" error.
+            modelBuilder.HasCharSet("latin1");
+
+            base.OnModelCreating(modelBuilder);
+        }
     }
 }
