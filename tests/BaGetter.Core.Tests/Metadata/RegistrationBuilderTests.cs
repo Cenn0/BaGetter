@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Moq;
@@ -32,6 +33,15 @@ namespace BaGetter.Core.Tests.Metadata
                 GetTestPackage(packageId, "1.0.0"),
             };
 
+            /*
+             * Use current date for each packages publish date, because later a date offset will be
+             * calculated and leads to an overflow error of the offset because the default is year 0001.
+             */
+            foreach (var package in packages)
+            {
+                package.Published = DateTime.UtcNow;
+            }
+
             var registration = new PackageRegistration(packageId, packages);
 
             var registrationBuilder = new RegistrationBuilder(_urlGenerator.Object);
@@ -52,7 +62,7 @@ namespace BaGetter.Core.Tests.Metadata
         /// Create a fake <see cref="Package"></see> with the minimum metadata needed by the <see cref="RegistrationBuilder"></see>.
         /// </summary>
         private Package GetTestPackage(string packageId, string version)
-        {            
+        {
             return new Package
             {
                 Id = packageId,
