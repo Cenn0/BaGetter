@@ -1,3 +1,8 @@
+using System;
+using System.IO;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 using BaGetter.Core;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -44,6 +49,30 @@ namespace BaGetter.Database.Sqlite
             builder.Entity<TargetFramework>()
                 .Property(f => f.Moniker)
                 .HasColumnType("TEXT COLLATE NOCASE");
+        }
+
+        public override async Task RunMigrationsAsync(CancellationToken cancellationToken)
+        {
+            if (Database.GetDbConnection() is SqliteConnection connection)
+            {
+                /* Create the folder of the Sqlite blob if it does not exist. */
+                CreateSqliteDataSourceDirectory(connection);
+            }
+
+            await base.RunMigrationsAsync(cancellationToken);
+        }
+
+        /// <summary>
+        /// Creates directories specified in the Database::ConnectionString config for the Sqlite database file.
+        /// </summary>
+        /// <param name="connection">Instance of the <see cref="SqliteConnection"/>.</param>
+        private static void CreateSqliteDataSourceDirectory(SqliteConnection connection)
+        {
+            var pathToCreate = Path.GetDirectoryName(connection.DataSource);
+
+            if (pathToCreate is null) return;
+
+            Directory.CreateDirectory(pathToCreate);
         }
     }
 }
