@@ -145,7 +145,8 @@ namespace BaGetter.Core
             return _searchBuilder.BuildDependents(dependents);
         }
 
-        private IQueryable<Package> ApplySearchQuery(IQueryable<Package> query, string search)
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1862:Use the 'StringComparison' method overloads to perform case-insensitive string comparisons", Justification = "Not for EF queries")]
+        private static IQueryable<Package> ApplySearchQuery(IQueryable<Package> query, string search)
         {
             if (string.IsNullOrEmpty(search))
             {
@@ -157,7 +158,7 @@ namespace BaGetter.Core
             return query.Where(p => p.Id.ToLower().Contains(search));
         }
 
-        private IQueryable<Package> ApplySearchFilters(
+        private static IQueryable<Package> ApplySearchFilters(
             IQueryable<Package> query,
             bool includePrerelease,
             bool includeSemVer2,

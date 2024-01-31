@@ -18,6 +18,7 @@ namespace BaGetter.Core
     {
         private readonly NuGetClient _client;
         private readonly ILogger<V3UpstreamClient> _logger;
+        private static readonly char[] Separator = { ',', ';', '\t', '\n', '\r' };
 
         public V3UpstreamClient(NuGetClient client, ILogger<V3UpstreamClient> logger)
         {
@@ -117,7 +118,7 @@ namespace BaGetter.Core
             };
         }
 
-        private Uri ParseUri(string uriString)
+        private static Uri ParseUri(string uriString)
         {
             if (uriString == null) return null;
 
@@ -129,12 +130,12 @@ namespace BaGetter.Core
             return uri;
         }
 
-        private string[] ParseAuthors(string authors)
+        private static string[] ParseAuthors(string authors)
         {
             if (string.IsNullOrEmpty(authors)) return Array.Empty<string>();
 
             return authors
-                .Split(new[] { ',', ';', '\t', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+                .Split(Separator, StringSplitOptions.RemoveEmptyEntries)
                 .Select(a => a.Trim())
                 .ToArray();
         }

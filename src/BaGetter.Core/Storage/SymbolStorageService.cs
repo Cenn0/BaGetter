@@ -47,27 +47,27 @@ namespace BaGetter.Core
             }
         }
 
-        private string GetPathForKey(string filename, string key)
+        private static string GetPathForKey(string filename, string key)
         {
             // Ensure the filename doesn't try to escape out of the current directory.
             var tempPath = Path.GetDirectoryName(Path.GetTempPath());
             var expandedPath = Path.GetDirectoryName(Path.Combine(tempPath, filename));
-            
+
             if (expandedPath != tempPath)
             {
-                throw new ArgumentException(nameof(filename));
+                throw new ArgumentException($"Invalid file name: \"{filename}\" (can't escape the current directory)", nameof(filename));
             }
 
             if (!key.All(char.IsLetterOrDigit))
             {
-                throw new ArgumentException(nameof(key));
+                throw new ArgumentException($"Invalid key: \"{key}\" (must contain exclusively letters and digits)", nameof(key));
             }
 
             // The key's first 32 characters are the GUID, the remaining characters are the age.
             // See: https://github.com/dotnet/symstore/blob/98717c63ec8342acf8a07aa5c909b88bd0c664cc/docs/specs/SSQP_Key_Conventions.md#portable-pdb-signature
             // Debuggers should always use the age "ffffffff", however Visual Studio 2019
             // users have reported other age values. We will ignore the age.
-            key = key.Substring(0, 32) + "ffffffff";
+            key = string.Concat(key.AsSpan(0, 32), "ffffffff");
 
             return Path.Combine(
                 SymbolsPathPrefix,

@@ -110,7 +110,7 @@ namespace BaGetter.Web
             PackageDownloadUrl = _url.GetPackageDownloadUrl(Package.Id, packageVersion);
         }
 
-        private IReadOnlyList<DependencyGroupModel> ToDependencyGroups(Package package)
+        private static List<DependencyGroupModel> ToDependencyGroups(Package package)
         {
             return package
                 .Dependencies
@@ -135,7 +135,7 @@ namespace BaGetter.Web
                 .ToList();
         }
 
-        private string PrettifyTargetFramework(string targetFramework)
+        private static string PrettifyTargetFramework(string targetFramework)
         {
             if (targetFramework == null) return "All Frameworks";
 
@@ -179,7 +179,7 @@ namespace BaGetter.Web
             return $"{frameworkName} {frameworkVersion}";
         }
 
-        private IReadOnlyList<VersionModel> ToVersions(IReadOnlyList<Package> packages, NuGetVersion selectedVersion)
+        private static List<VersionModel> ToVersions(IReadOnlyList<Package> packages, NuGetVersion selectedVersion)
         {
             return packages
                 .Select(p => new VersionModel
@@ -205,7 +205,7 @@ namespace BaGetter.Web
 
                 using (var reader = new StreamReader(readmeStream))
                 {
-                    readme = await reader.ReadToEndAsync();
+                    readme = await reader.ReadToEndAsync(cancellationToken);
                 }
             }
 

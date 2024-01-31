@@ -29,7 +29,7 @@ namespace BaGetter.Core
         public async Task ImportAsync(CancellationToken cancellationToken)
         {
             var packageDownloads = await _downloadsSource.GetPackageDownloadsAsync();
-            var packages = await _context.Packages.CountAsync();
+            var packages = await _context.Packages.CountAsync(cancellationToken);
             var batches = (packages / BatchSize) + 1;
 
             for (var batch = 0; batch < batches; batch++)
@@ -41,8 +41,8 @@ namespace BaGetter.Core
                     var packageId = package.Id.ToLowerInvariant();
                     var packageVersion = package.NormalizedVersionString.ToLowerInvariant();
 
-                    if (!packageDownloads.ContainsKey(packageId) ||
-                        !packageDownloads[packageId].ContainsKey(packageVersion))
+                    if (!packageDownloads.TryGetValue(packageId, out var value) ||
+                        !value.ContainsKey(packageVersion))
                     {
                         continue;
                     }

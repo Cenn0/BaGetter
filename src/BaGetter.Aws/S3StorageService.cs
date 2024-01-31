@@ -18,8 +18,7 @@ namespace BaGetter.Aws
 
         public S3StorageService(IOptionsSnapshot<S3StorageOptions> options, AmazonS3Client client)
         {
-            if (options == null)
-                throw new ArgumentNullException(nameof(options));
+            ArgumentNullException.ThrowIfNull(options);
 
             _bucket = options.Value.Bucket;
             _prefix = options.Value.Prefix;
@@ -42,7 +41,7 @@ namespace BaGetter.Aws
             {
                 using (var request = await _client.GetObjectAsync(_bucket, PrepareKey(path), cancellationToken))
                 {
-                    await request.ResponseStream.CopyToAsync(stream);
+                    await request.ResponseStream.CopyToAsync(stream, cancellationToken);
                 }
 
                 stream.Seek(0, SeekOrigin.Begin);

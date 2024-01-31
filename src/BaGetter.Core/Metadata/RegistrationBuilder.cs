@@ -32,7 +32,7 @@ namespace BaGetter.Core
                     new BaGetterRegistrationIndexPage
                     {
                         RegistrationPageUrl = _url.GetRegistrationIndexUrl(registration.PackageId),
-                        Count = registration.Packages.Count(),
+                        Count = registration.Packages.Count,
                         Lower = sortedPackages.First().Version.ToNormalizedString().ToLowerInvariant(),
                         Upper = sortedPackages.Last().Version.ToNormalizedString().ToLowerInvariant(),
                         ItemsOrNull = sortedPackages.Select(ToRegistrationIndexPageItem).ToList(),
@@ -92,7 +92,7 @@ namespace BaGetter.Core
                 },
             };
 
-        private IReadOnlyList<DependencyGroupItem> ToDependencyGroups(Package package)
+        private static List<DependencyGroupItem> ToDependencyGroups(Package package)
         {
             return package.Dependencies
                 .GroupBy(d => d.TargetFramework)

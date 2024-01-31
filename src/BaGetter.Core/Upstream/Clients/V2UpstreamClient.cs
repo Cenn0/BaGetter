@@ -27,15 +27,14 @@ namespace BaGetter.Core
         private readonly SourceRepository _repository;
         private readonly INuGetLogger _ngLogger;
         private readonly ILogger _logger;
+        private static readonly char[] TagsSeparators = {';'};
+        private static readonly char[] AuthorsSeparators = new[] { ',', ';', '\t', '\n', '\r' };
 
         public V2UpstreamClient(
             IOptionsSnapshot<MirrorOptions> options,
             ILogger logger)
         {
-            if (options is null)
-            {
-                throw new ArgumentNullException(nameof(options));
-            }
+            ArgumentNullException.ThrowIfNull(options);
 
             if (options.Value?.PackageSource?.AbsolutePath == null)
             {
@@ -126,7 +125,11 @@ namespace BaGetter.Core
             }
         }
 
-        public void Dispose() => _cache.Dispose();
+        public void Dispose()
+        {
+            _cache.Dispose();
+            GC.SuppressFinalize(this);
+        }
 
         private Package ToPackage(IPackageSearchMetadata package)
         {
@@ -151,18 +154,18 @@ namespace BaGetter.Core
                 PackageTypes = new List<PackageType>(),
                 RepositoryUrl = null,
                 RepositoryType = null,
-                Tags = package.Tags?.Split(new[] {';'}, StringSplitOptions.RemoveEmptyEntries),
+                Tags = package.Tags?.Split(TagsSeparators, StringSplitOptions.RemoveEmptyEntries),
 
                 Dependencies = ToDependencies(package)
             };
         }
 
-        private string[] ParseAuthors(string authors)
+        private static string[] ParseAuthors(string authors)
         {
             if (string.IsNullOrEmpty(authors)) return Array.Empty<string>();
 
             return authors
-                .Split(new[] { ',', ';', '\t', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+                .Split(AuthorsSeparators, StringSplitOptions.RemoveEmptyEntries)
                 .Select(a => a.Trim())
                 .ToArray();
         }
