@@ -43,6 +43,15 @@ This project is licensed under the [MIT License](LICENSE).
 
 If you have questions, feel free to open an [issue] or join our [Discord Server][Discord link] for discussions.
 
+## 🤝🏼 Contributors
+
+Thanks to everyone who helps to make BaGetter better!
+
+<a href="https://github.com/bagetter/BaGetter/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=bagetter/BaGetter" />
+</a>
+
+
 [Build status]: https://img.shields.io/github/actions/workflow/status/bagetter/BaGetter/.github/workflows/main.yml?logo=github&logoColor=fff
 
 [Docker image version]: https://img.shields.io/docker/v/bagetter/bagetter?logo=docker&logoColor=fff&label=version
