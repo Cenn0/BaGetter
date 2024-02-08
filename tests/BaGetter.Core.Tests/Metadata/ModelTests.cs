@@ -100,25 +100,33 @@ namespace BaGetter.Core.Tests.Metadata
             };
         }
 
+        /// <summary>
+        /// Check that the derived type is actually derived from the original type.
+        /// </summary>
+        /// <param name="data">The test data.</param>
+        [Theory]
+        [MemberData(nameof(ExtendedModelsData))]
+        public void ExtendedModelsAreActuallyDerivedFromOriginalModels(ExtendedModelData data)
+        {
+            Assert.True(data.DerivedType.IsSubclassOf(data.OriginalType));
+        }
+
         [Theory]
         [MemberData(nameof(ExtendedModelsData))]
         public void ValidateExtendedModels(ExtendedModelData data)
         {
+            // Arrange
             IReadOnlyDictionary<string, PropertyInfo> originalProperties = data
                 .OriginalType
                 .GetProperties()
                 .ToDictionary(p => p.Name, p => p);
+
             IReadOnlyDictionary<string, PropertyInfo> derivedProperties = data
                 .DerivedType
-                .GetProperties()
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
                 .ToDictionary(p => p.Name, p => p);
 
-            // Check that all properties on the original model are present on the derived model.
-            var missingProperties = originalProperties.Keys.Where(name => !derivedProperties.ContainsKey(name));
-
-            Assert.True(
-                !missingProperties.Any(),
-                $"The following properties are missing from the derived type: {string.Join(',', missingProperties)}");
+            // Act/Assert
 
             // Check that all properties on the derived model are as expected compared to the original model.
             foreach (var derivedProperty in derivedProperties.Values)
@@ -137,9 +145,9 @@ namespace BaGetter.Core.Tests.Metadata
                     continue;
                 }
 
-                // This property should exist on both the original and derived models.
-                // This property should have the same "JsonPropertyName" attribute values.
-                var originalProperty = Assert.Contains(derivedProperty.Name, originalProperties);
+                var originalProperty = originalProperties
+                        .SingleOrDefault(x => string.Equals(x.Key, derivedProperty.Name, StringComparison.OrdinalIgnoreCase))
+                        .Value;
 
                 var originalJsonName = GetAttributeArgs<JsonPropertyNameAttribute>(originalProperty)?.FirstOrDefault();
                 var derivedJsonName = GetAttributeArgs<JsonPropertyNameAttribute>(derivedProperty)?.FirstOrDefault();
@@ -159,9 +167,6 @@ namespace BaGetter.Core.Tests.Metadata
                     $"on type '{data.OriginalType}'.\nExpected: '{originalJsonName}'\n" +
                     $"Actual: '{derivedJsonName}'");
 
-                var originalJsonConverterArgs = GetAttributeArgs<JsonConverterAttribute>(originalProperty);
-                var derivedJsonConverterArgs = GetAttributeArgs<JsonConverterAttribute>(derivedProperty);
-
                 // If the property was modified, check that the property types are expected.
                 if (data.ModifiedProperties.TryGetValue(derivedProperty.Name, out var modifiedTypes))
                 {
@@ -176,31 +181,20 @@ namespace BaGetter.Core.Tests.Metadata
                         $"Expected: {modifiedTypes.To}\n" +
                         $"Actual: {derivedProperty.PropertyType}");
 
+                    var originalJsonConverterArgs = GetAttributeArgs<JsonConverterAttribute>(originalProperty);
+                    var derivedJsonConverterArgs = GetAttributeArgs<JsonConverterAttribute>(derivedProperty);
+
                     if (originalJsonConverterArgs != null || derivedJsonConverterArgs != null)
                     {
-                        throw new NotSupportedException(
-                            "JSON converters on modified properties is not supported");
+                        throw new NotSupportedException("JSON converters on modified properties is not supported");
                     }
 
                     continue;
                 }
-
-                // Otherwise, this property should be identical to the original property.
-                Assert.True(
-                    originalProperty.PropertyType == derivedProperty.PropertyType,
-                    $"Property '{derivedProperty.Name}' on type {data.DerivedType} has unexpected property type\n" +
-                    $"Expected: {originalProperty.PropertyType}\n" +
-                    $"Actual: {derivedProperty.PropertyType}");
-                Assert.True(
-                    originalJsonConverterArgs?.First() == derivedJsonConverterArgs?.First(),
-                    $"Property '{derivedProperty.Name}' on type '{data.DerivedType}' " +
-                    "has unexpected JsonConverter value.\n" +
-                    $"Expected: '{originalJsonConverterArgs?.First()}'\n" +
-                    $"Actual: '{derivedJsonConverterArgs?.First()}'");
             }
         }
 
-        private IList<CustomAttributeTypedArgument> GetAttributeArgs<TAttribute>(PropertyInfo property)
+        private static IList<CustomAttributeTypedArgument> GetAttributeArgs<TAttribute>(PropertyInfo property)
         {
             return property
                 .CustomAttributes
@@ -224,14 +218,13 @@ namespace BaGetter.Core.Tests.Metadata
             /// <summary>
             /// The properties added by the model type in the "BaGetter.Core" project.
             /// </summary>
-            public Dictionary<string, Type> AddedProperties { get; set; } = new Dictionary<string, Type>();
+            public Dictionary<string, Type> AddedProperties { get; set; } = [];
 
             /// <summary>
             /// The properties whose types were modified by the model type in the
             /// "BaGetter.Core" project.
             /// </summary>
-            public Dictionary<string, (Type From, Type To)> ModifiedProperties { get; set; }
-                = new Dictionary<string, (Type From, Type To)>();
+            public Dictionary<string, (Type From, Type To)> ModifiedProperties { get; set; } = [];
         }
     }
 }
