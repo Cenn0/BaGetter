@@ -1,16 +1,6 @@
 name: Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      releaseVersion:
-        description: 'Release version'
-        required: true
-        default: '0.0.0'
-      packageSource:
-        description: 'Package source'
-        required: true
-        default: 'https://api.nuget.org/v3/index.json'
   push:
     tags:
       - 'v*.*.*'
@@ -87,9 +77,11 @@ jobs:
       - name: Pack
         run: |
           export PackageVersion=${{ needs.version.outputs.RELEASE_VERSION }}
+          export PackageSource=${PackageSource:="https://api.nuget.org/v3/index.json"}
+          echo "PackageSource=${PackageSource}" >> $GITHUB_ENV
           dotnet pack --configuration Release --output artifacts
       - name: Push
-        run: dotnet nuget push "*" -s ${{ github.event.inputs.packageSource }} -k ${{secrets.NUGET_API_KEY}}
+        run: dotnet nuget push "*" -s ${PackageSource} -k ${{secrets.NUGET_API_KEY}}
         working-directory: artifacts
 
   release_docker_image:
