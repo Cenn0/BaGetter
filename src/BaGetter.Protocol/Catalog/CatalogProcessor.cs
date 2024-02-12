@@ -8,9 +8,11 @@ namespace BaGetter.Protocol.Catalog
 {
     /// <summary>
     /// Processes catalog leafs in chronological order.
-    /// See: https://docs.microsoft.com/en-us/nuget/api/catalog-resource
-    /// Based off: https://github.com/NuGet/NuGet.Services.Metadata/blob/3a468fe534a03dcced897eb5992209fdd3c4b6c9/src/NuGet.Protocol.Catalog/CatalogProcessor.cs
-    /// </summary>
+    /// </summary>    
+    /// <remarks>
+    /// See: <see href="https://docs.microsoft.com/en-us/nuget/api/catalog-resource"/><br/>
+    /// Based off: <see href="https://github.com/NuGet/NuGet.Services.Metadata/blob/3a468fe534a03dcced897eb5992209fdd3c4b6c9/src/NuGet.Protocol.Catalog/CatalogProcessor.cs"/>
+    /// </remarks>
     public class CatalogProcessor
     {
         private readonly ICatalogLeafProcessor _leafProcessor;

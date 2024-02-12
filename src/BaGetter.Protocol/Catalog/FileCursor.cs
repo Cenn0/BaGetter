@@ -9,10 +9,10 @@ using Microsoft.Extensions.Logging;
 namespace BaGetter.Protocol.Catalog
 {
     /// <summary>
-    /// A cursor implementation which stores the cursor in local file. The cursor value is written to the file as
-    /// a JSON object.
-    /// Based off: https://github.com/NuGet/NuGet.Services.Metadata/blob/3a468fe534a03dcced897eb5992209fdd3c4b6c9/src/NuGet.Protocol.Catalog/FileCursor.cs
+    /// A cursor implementation which stores the cursor in local file.<br/>
+    /// The cursor value is written to the file as a JSON object.
     /// </summary>
+    /// <remarks>Based off: <see href="https://github.com/NuGet/NuGet.Services.Metadata/blob/3a468fe534a03dcced897eb5992209fdd3c4b6c9/src/NuGet.Protocol.Catalog/FileCursor.cs"/></remarks>
     public class FileCursor : ICursor
     {
         private readonly string _path;

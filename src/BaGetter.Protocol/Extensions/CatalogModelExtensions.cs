@@ -9,13 +9,13 @@ namespace BaGetter.Protocol
 {
     /// <summary>
     /// These are documented interpretations of values returned by the catalog API.
-    /// Based off: https://github.com/NuGet/NuGet.Services.Metadata/blob/64af0b59c5a79e0143f0808b39946df9f16cb2e7/src/NuGet.Protocol.Catalog/Models/ModelExtensions.cs
     /// </summary>
+    /// <remarks>Based off: <see href="https://github.com/NuGet/NuGet.Services.Metadata/blob/64af0b59c5a79e0143f0808b39946df9f16cb2e7/src/NuGet.Protocol.Catalog/Models/ModelExtensions.cs"/></remarks>
     public static class CatalogModelExtensions
     {
         /// <summary>
-        /// Gets the leaves that lie within the provided commit timestamp bounds. The result is sorted by commit
-        /// timestamp, then package ID, then package version (SemVer order).
+        /// Gets the leaves that lie within the provided commit timestamp bounds.<br/>
+        /// The result is sorted by commit timestamp, then package ID, then package version (SemVer order).
         /// </summary>
         /// <param name="catalogPage"></param>
         /// <param name="minCommitTimestamp">The exclusive lower time bound on <see cref="CatalogLeafItem.CommitTimestamp"/>.</param>
@@ -51,8 +51,8 @@ namespace BaGetter.Protocol
         }
 
         /// <summary>
-        /// Gets the pages that may have catalog leaves within the provided commit timestamp bounds. The result is
-        /// sorted by commit timestamp.
+        /// Gets the pages that may have catalog leaves within the provided commit timestamp bounds.<br/>
+        /// The result is sorted by commit timestamp.
         /// </summary>
         /// <param name="catalogIndex">The catalog index to fetch pages from.</param>
         /// <param name="minCommitTimestamp">The exclusive lower time bound on <see cref="CatalogPageItem.CommitTimestamp"/>.</param>
