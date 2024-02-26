@@ -117,7 +117,7 @@ else
             @if (!string.IsNullOrEmpty(Model.Package.ReleaseNotes))
             {
                 ExpandableSection("Release Notes", "ms-Icon--ReadingMode", expanded: false,
-                    @<div class="package-release-notes">@Model.Package.ReleaseNotes</div>);
+                    @<div class="package-release-notes">@Model.ParsedReleaseNotes</div>);
             }
 
             @{ ExpandableSection("Dependencies", "ms-Icon--Packages", expanded: false,
