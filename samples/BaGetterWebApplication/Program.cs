@@ -9,7 +9,7 @@ var builder = WebApplication.CreateBuilder();
 builder.Services.AddBaGetterWebApplication(bagetter =>
 {
     bagetter.AddSqliteDatabase(builder.Configuration);
-    bagetter.AddFileStorage();
+    bagetter.AddFileStorage(builder.Configuration);
 });
 var app = builder.Build();
 
