@@ -1,26 +1,32 @@
 using System;
 using BaGetter.Core;
+using BaGetter.Core.Statistics;
 using BaGetter.Database.MySql;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 
 namespace BaGetter;
 
 public static class MySqlApplicationExtensions
 {
-    public static BaGetterApplication AddMySqlDatabase(this BaGetterApplication app)
+    private const string MySql = "MySql";
+
+    public static BaGetterApplication AddMySqlDatabase(this BaGetterApplication app, IConfiguration configuration)
     {
-        app.Services.AddBaGetDbContextProvider<MySqlContext>("MySql");
+        if (!configuration.HasDatabaseType(MySql)) return app;
+
+        app.Services.AddBaGetDbContextProvider<MySqlContext>(MySql);
+        StatisticsHelperUsedServices.AddServiceToServices(MySql);
 
         return app;
     }
 
     public static BaGetterApplication AddMySqlDatabase(
         this BaGetterApplication app,
+        IConfiguration configuration,
         Action<DatabaseOptions> configure)
     {
-        app.AddMySqlDatabase();
+        app.AddMySqlDatabase(configuration);
         app.Services.Configure(configure);
         return app;
     }

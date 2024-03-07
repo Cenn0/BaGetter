@@ -52,4 +52,6 @@ public class BaGetterOptions
     public MirrorOptions Mirror { get; set; }
 
     public HealthCheckOptions HealthCheck { get; set; }
+
+    public StatisticsOptions Statistics { get; set; }
 }

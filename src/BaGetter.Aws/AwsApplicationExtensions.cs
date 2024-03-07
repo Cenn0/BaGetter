@@ -5,6 +5,8 @@ using Amazon.Runtime;
 using Amazon.S3;
 using BaGetter.Aws;
 using BaGetter.Core;
+using BaGetter.Core.Statistics;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -13,8 +15,14 @@ namespace BaGetter;
 
 public static class AwsApplicationExtensions
 {
-    public static BaGetterApplication AddAwsS3Storage(this BaGetterApplication app)
+    private const string AwsS3 = "AwsS3";
+
+    public static BaGetterApplication AddAwsS3Storage(this BaGetterApplication app, IConfiguration configuration)
     {
+        if (!configuration.HasStorageType(AwsS3)) return app;
+
+        StatisticsHelperUsedServices.AddServiceToServices(AwsS3);
+
         app.Services.AddBaGetterOptions<S3StorageOptions>(nameof(BaGetterOptions.Storage));
 
         app.Services.AddTransient<S3StorageService>();
@@ -70,9 +78,12 @@ public static class AwsApplicationExtensions
         return app;
     }
 
-    public static BaGetterApplication AddAwsS3Storage(this BaGetterApplication app, Action<S3StorageOptions> configure)
+    public static BaGetterApplication AddAwsS3Storage(
+        this BaGetterApplication app,
+        IConfiguration configuration,
+        Action<S3StorageOptions> configure)
     {
-        app.AddAwsS3Storage();
+        app.AddAwsS3Storage(configuration);
         app.Services.Configure(configure);
         return app;
     }

@@ -1,26 +1,32 @@
 using System;
 using BaGetter.Core;
+using BaGetter.Core.Statistics;
 using BaGetter.Database.Sqlite;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 
 namespace BaGetter;
 
 public static class SqliteApplicationExtensions
 {
-    public static BaGetterApplication AddSqliteDatabase(this BaGetterApplication app)
+    private const string Sqlite = "Sqlite";
+
+    public static BaGetterApplication AddSqliteDatabase(this BaGetterApplication app, IConfiguration configuration)
     {
-        app.Services.AddBaGetDbContextProvider<SqliteContext>("Sqlite");
+        if (!configuration.HasDatabaseType(Sqlite)) return app;
+
+        app.Services.AddBaGetDbContextProvider<SqliteContext>(Sqlite);
+        StatisticsHelperUsedServices.AddServiceToServices(Sqlite);
 
         return app;
     }
 
     public static BaGetterApplication AddSqliteDatabase(
         this BaGetterApplication app,
+        IConfiguration configuration,
         Action<DatabaseOptions> configure)
     {
-        app.AddSqliteDatabase();
+        app.AddSqliteDatabase(configuration);
         app.Services.Configure(configure);
         return app;
     }

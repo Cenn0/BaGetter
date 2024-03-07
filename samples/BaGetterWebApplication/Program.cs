@@ -8,7 +8,7 @@ var builder = WebApplication.CreateBuilder();
 // This will add the BaGetter services and options to the container.
 builder.Services.AddBaGetterWebApplication(bagetter =>
 {
-    bagetter.AddSqliteDatabase();
+    bagetter.AddSqliteDatabase(builder.Configuration);
     bagetter.AddFileStorage();
 });
 var app = builder.Build();

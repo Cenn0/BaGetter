@@ -1,26 +1,32 @@
 using System;
 using BaGetter.Core;
+using BaGetter.Core.Statistics;
 using BaGetter.Database.PostgreSql;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 
 namespace BaGetter;
 
 public static class PostgreSqlApplicationExtensions
 {
-    public static BaGetterApplication AddPostgreSqlDatabase(this BaGetterApplication app)
+    private const string PostgreSql = "PostgreSql";
+
+    public static BaGetterApplication AddPostgreSqlDatabase(this BaGetterApplication app, IConfiguration configuration)
     {
-        app.Services.AddBaGetDbContextProvider<PostgreSqlContext>("PostgreSql");
+        if (!configuration.HasDatabaseType(PostgreSql)) return app;
+
+        app.Services.AddBaGetDbContextProvider<PostgreSqlContext>(PostgreSql);
+        StatisticsHelperUsedServices.AddServiceToServices(PostgreSql);
 
         return app;
     }
 
     public static BaGetterApplication AddPostgreSqlDatabase(
         this BaGetterApplication app,
+        IConfiguration configuration,
         Action<DatabaseOptions> configure)
     {
-        app.AddPostgreSqlDatabase();
+        app.AddPostgreSqlDatabase(configuration);
         app.Services.Configure(configure);
         return app;
     }

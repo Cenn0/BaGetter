@@ -47,19 +47,22 @@ public class Startup
 
     private void ConfigureBaGetterApplication(BaGetterApplication app)
     {
+        // Add application statistics.
+        app.AddStatistics();
+
         // Add database providers.
         //app.AddAzureTableDatabase();
-        app.AddMySqlDatabase();
-        app.AddPostgreSqlDatabase();
-        app.AddSqliteDatabase();
-        app.AddSqlServerDatabase();
+        app.AddMySqlDatabase(Configuration);
+        app.AddPostgreSqlDatabase(Configuration);
+        app.AddSqliteDatabase(Configuration);
+        app.AddSqlServerDatabase(Configuration);
 
         // Add storage providers.
-        app.AddFileStorage();
-        app.AddAliyunOssStorage();
-        app.AddAwsS3Storage();
+        app.AddFileStorage(Configuration);
+        app.AddAliyunOssStorage(Configuration);
+        app.AddAwsS3Storage(Configuration);
         //app.AddAzureBlobStorage();
-        app.AddGoogleCloudStorage();
+        app.AddGoogleCloudStorage(Configuration);
 
         // Add search providers.
         //app.AddAzureSearch();

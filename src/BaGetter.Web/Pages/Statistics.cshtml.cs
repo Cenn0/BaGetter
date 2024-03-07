@@ -2,10 +2,10 @@
 
 namespace BaGetter.Web;
 
-public class Stats : PageModel
+public class Statistics : PageModel
 {
     public void OnGet()
     {
-        
+
     }
 }

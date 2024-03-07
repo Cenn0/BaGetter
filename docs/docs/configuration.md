@@ -188,6 +188,23 @@ This path is configurable if needed:
 }
 ```
 
+## Statistics
+
+On the application's statistics page the currently used services are listed.
+You can hide this part by modifying the following configuration:
+
+```json
+{
+    ...
+
+    "Statistics": {
+        "HideServices": true
+    },
+
+    ...
+}
+```
+
 ## Load secrets from files
 
 Mostly useful when running containerised (e.g. using Docker, Podman, Kubernetes, etc), the application will look for files named in the same pattern as environment variables under `/run/secrets`.
