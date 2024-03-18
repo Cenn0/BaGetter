@@ -206,14 +206,14 @@ This can be useful if you are hosting a private feed and need to host large pack
 ## Statistics
 
 On the application's statistics page the currently used services are listed.
-You can hide this part by modifying the following configuration:
+You can hide or show this part by modifying the `EnableStatisticsPage` configuration:
 
 ```json
 {
     ...
 
     "Statistics": {
-        "EnableStatisticsPage": true,
+        "EnableStatisticsPage": false,
         "ListConfiguredServices": false
     },
 

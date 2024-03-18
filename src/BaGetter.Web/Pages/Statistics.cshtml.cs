@@ -1,25 +1,22 @@
 ﻿using BaGetter.Core;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace BaGetter.Web;
 
 public class StatisticsModel : PageModel
 {
-    private readonly IConfiguration _configuration;
+    private readonly IOptionsSnapshot<BaGetterOptions> _options;
 
-    public StatisticsModel(IConfiguration configuration)
+    public StatisticsModel(IOptionsSnapshot<BaGetterOptions> options)
     {
-        _configuration = configuration;
-
+        _options = options;
     }
 
     public IActionResult OnGet()
     {
-        var options = _configuration.Get<BaGetterOptions>();
-
-        if (options.Statistics.EnableStatisticsPage is false) return NotFound();
+        if (!_options.Value.Statistics.EnableStatisticsPage) return NotFound();
 
         return Page();
     }

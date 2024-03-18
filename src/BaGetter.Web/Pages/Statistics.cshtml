@@ -4,13 +4,12 @@
 
 @using System.Reflection
 @using BaGetter.Core.Statistics
-@using Microsoft.Extensions.Configuration
+@using Microsoft.Extensions.Options
 
-@inject IConfiguration configuration
+@inject IOptionsSnapshot<BaGetterOptions> options
 @inject IStatisticsService IStatisticsService
 
 @{
-    var options = configuration.Get<BaGetterOptions>();
     ViewData["Title"] = "Stats";
 }
 
@@ -41,7 +40,7 @@
             <h4>@await IStatisticsService.GetVersionsTotalAmount()</h4>
         </div>
     </div>
-    @if (options.Statistics.ListConfiguredServices is true)
+    @if (options.Value.Statistics.ListConfiguredServices)
     {
         <div class="row">
             <article class="col-sm-4">
