@@ -22,7 +22,8 @@ public class Startup
 
     public void ConfigureServices(IServiceCollection services)
     {
-        services.ConfigureOptions<ConfigureBaGetterOptions>();
+        services.ConfigureOptions<ValidateBaGetterOptions>();
+        services.ConfigureOptions<ConfigureBaGetterServer>();
 
         services.AddBaGetterOptions<IISServerOptions>(nameof(IISServerOptions));
         services.AddBaGetterWebApplication(ConfigureBaGetterApplication);
@@ -83,7 +84,7 @@ public class Startup
         app.UseStaticFiles();
         app.UseRouting();
 
-        app.UseCors(ConfigureBaGetterOptions.CorsPolicy);
+        app.UseCors(ConfigureBaGetterServer.CorsPolicy);
         app.UseOperationCancelledMiddleware();
 
         app.UseEndpoints(endpoints =>
