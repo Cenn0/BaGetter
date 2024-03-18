@@ -1,8 +1,6 @@
 using System;
 using BaGetter.Core;
-using BaGetter.Core.Statistics;
 using BaGetter.Gcp;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -10,14 +8,8 @@ namespace BaGetter;
 
 public static class GoogleCloudApplicationExtensions
 {
-    private const string GoogleCloud = "GoogleCloud";
-
-    public static BaGetterApplication AddGoogleCloudStorage(this BaGetterApplication app, IConfiguration configuration)
+    public static BaGetterApplication AddGoogleCloudStorage(this BaGetterApplication app)
     {
-        if (!configuration.HasStorageType(GoogleCloud)) return app;
-
-        StatisticsHelperUsedServices.AddServiceToServices(GoogleCloud);
-
         app.Services.AddBaGetterOptions<GoogleCloudStorageOptions>(nameof(BaGetterOptions.Storage));
         app.Services.AddTransient<GoogleCloudStorageService>();
 
@@ -35,10 +27,9 @@ public static class GoogleCloudApplicationExtensions
 
     public static BaGetterApplication AddGoogleCloudStorage(
         this BaGetterApplication app,
-        IConfiguration configuration,
         Action<GoogleCloudStorageOptions> configure)
     {
-        app.AddGoogleCloudStorage(configuration);
+        app.AddGoogleCloudStorage();
         app.Services.Configure(configure);
         return app;
     }

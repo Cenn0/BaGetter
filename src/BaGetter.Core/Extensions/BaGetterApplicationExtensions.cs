@@ -1,7 +1,6 @@
 using System;
 using BaGetter.Core;
 using BaGetter.Core.Statistics;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -9,24 +8,18 @@ namespace BaGetter;
 
 public static class BaGetterApplicationExtensions
 {
-    private const string FileSystem = "FileSystem";
-
-    public static BaGetterApplication AddFileStorage(this BaGetterApplication app, IConfiguration configuration)
+    public static BaGetterApplication AddFileStorage(this BaGetterApplication app)
     {
-        if (!configuration.HasStorageType(FileSystem)) return app;
-
         app.Services.TryAddTransient<IStorageService>(provider => provider.GetRequiredService<FileStorageService>());
-        StatisticsHelperUsedServices.AddServiceToServices(FileSystem);
 
         return app;
     }
 
     public static BaGetterApplication AddFileStorage(
         this BaGetterApplication app,
-        IConfiguration configuration,
         Action<FileSystemStorageOptions> configure)
     {
-        app.AddFileStorage(configuration);
+        app.AddFileStorage();
         app.Services.Configure(configure);
         return app;
     }

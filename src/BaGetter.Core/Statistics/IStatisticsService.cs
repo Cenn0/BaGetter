@@ -7,6 +7,5 @@ public interface IStatisticsService
 {
     Task<int> GetPackagesTotalAmount();
     Task<int> GetVersionsTotalAmount();
-    void ServiceMakeKnownToStatsService(string serviceName);
     IEnumerable<string> GetKnownServices();
 }

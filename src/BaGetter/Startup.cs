@@ -2,9 +2,7 @@ using System;
 using BaGetter.Core;
 using BaGetter.Web;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -52,17 +50,17 @@ public class Startup
 
         // Add database providers.
         //app.AddAzureTableDatabase();
-        app.AddMySqlDatabase(Configuration);
-        app.AddPostgreSqlDatabase(Configuration);
-        app.AddSqliteDatabase(Configuration);
-        app.AddSqlServerDatabase(Configuration);
+        app.AddMySqlDatabase();
+        app.AddPostgreSqlDatabase();
+        app.AddSqliteDatabase();
+        app.AddSqlServerDatabase();
 
         // Add storage providers.
-        app.AddFileStorage(Configuration);
-        app.AddAliyunOssStorage(Configuration);
-        app.AddAwsS3Storage(Configuration);
+        app.AddFileStorage();
+        app.AddAliyunOssStorage();
+        app.AddAwsS3Storage();
         //app.AddAzureBlobStorage();
-        app.AddGoogleCloudStorage(Configuration);
+        app.AddGoogleCloudStorage();
 
         // Add search providers.
         //app.AddAzureSearch();

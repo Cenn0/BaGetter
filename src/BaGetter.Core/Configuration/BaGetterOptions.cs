@@ -1,5 +1,3 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace BaGetter.Core;
 
 public class BaGetterOptions
