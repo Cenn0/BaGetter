@@ -13,8 +13,6 @@ namespace BaGetter;
 
 public static class AwsApplicationExtensions
 {
-    private const string AwsS3 = "AwsS3";
-
     public static BaGetterApplication AddAwsS3Storage(this BaGetterApplication app)
     {
         app.Services.AddBaGetterOptions<S3StorageOptions>(nameof(BaGetterOptions.Storage));

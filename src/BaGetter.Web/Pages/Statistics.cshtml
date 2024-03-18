@@ -1,5 +1,7 @@
 ﻿@page "/stats"
 
+@model StatisticsModel
+
 @using System.Reflection
 @using BaGetter.Core.Statistics
 @using Microsoft.Extensions.Configuration
@@ -8,6 +10,7 @@
 @inject IStatisticsService IStatisticsService
 
 @{
+    var options = configuration.Get<BaGetterOptions>();
     ViewData["Title"] = "Stats";
 }
 
@@ -38,10 +41,7 @@
             <h4>@await IStatisticsService.GetVersionsTotalAmount()</h4>
         </div>
     </div>
-    @{
-        var options = configuration.Get<BaGetterOptions>();
-    }
-    @if (options.Statistics.HideServices is false)
+    @if (options.Statistics.ListConfiguredServices is true)
     {
         <div class="row">
             <article class="col-sm-4">

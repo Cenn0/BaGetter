@@ -1,3 +1,6 @@
+@using Microsoft.Extensions.Configuration
+@inject IConfiguration configuration
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -16,7 +19,6 @@
 </head>
 <body>
     <header>
-
         <nav class="navbar navbar-inverse" role="navigation">
             <div class="container">
                 <div class="row">
@@ -24,7 +26,13 @@
                         <ul class="nav navbar-nav" role="tablist">
                             <li role="presentation"><a asp-area="" asp-page="/Index" role="tab" nav-link><span>Packages</span></a></li>
                             <li role="presentation"><a asp-area="" asp-page="/Upload" role="tab" nav-link><span>Upload</span></a></li>
-                            <li role="presentation"><a asp-area="" asp-page="/Statistics" role="tab" nav-link><span>Statistics</span></a></li>
+                            @{
+                                var options = configuration.Get<BaGetterOptions>();
+                            }
+                            @if (options.Statistics.EnableStatisticsPage is true)
+                            {
+                                <li role="presentation"><a asp-area="" asp-page="/Statistics" role="tab" nav-link><span>Statistics</span></a></li>
+                            }
                             <li role="presentation">
                                 <a role="tab" href="https://www.bagetter.com/docs" target="_blank" rel="noopener noreferrer">
                                     <span>Documentation</span>
