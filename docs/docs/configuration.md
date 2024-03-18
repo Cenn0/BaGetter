@@ -213,12 +213,16 @@ You can hide this part by modifying the following configuration:
     ...
 
     "Statistics": {
-        "HideServices": true
+        "EnableStatisticsPage": true,
+        "ListConfiguredServices": false
     },
 
     ...
 }
 ```
+
+If you set `ListConfiguredServices` to `true` the currently used services for database and storage are shown on the stats page.
+
 
 ## Load secrets from files
 
