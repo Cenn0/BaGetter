@@ -203,6 +203,27 @@ This can be useful if you are hosting a private feed and need to host large pack
 }
 ```
 
+## Statistics
+
+On the application's statistics page the currently used services are listed.
+You can hide this part by modifying the following configuration:
+
+```json
+{
+    ...
+
+    "Statistics": {
+        "EnableStatisticsPage": true,
+        "ListConfiguredServices": false
+    },
+
+    ...
+}
+```
+
+If you set `ListConfiguredServices` to `true` the currently used services for database and storage are shown on the stats page.
+
+
 ## Load secrets from files
 
 Mostly useful when running containerised (e.g. using Docker, Podman, Kubernetes, etc), the application will look for files named in the same pattern as environment variables under `/run/secrets`.

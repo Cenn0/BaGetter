@@ -2,9 +2,7 @@ using System;
 using BaGetter.Core;
 using BaGetter.Web;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -48,6 +46,9 @@ public class Startup
 
     private void ConfigureBaGetterApplication(BaGetterApplication app)
     {
+        // Add application statistics.
+        app.AddStatistics();
+
         // Add database providers.
         //app.AddAzureTableDatabase();
         app.AddMySqlDatabase();

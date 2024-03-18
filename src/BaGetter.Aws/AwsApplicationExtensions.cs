@@ -70,7 +70,9 @@ public static class AwsApplicationExtensions
         return app;
     }
 
-    public static BaGetterApplication AddAwsS3Storage(this BaGetterApplication app, Action<S3StorageOptions> configure)
+    public static BaGetterApplication AddAwsS3Storage(
+        this BaGetterApplication app,
+        Action<S3StorageOptions> configure)
     {
         app.AddAwsS3Storage();
         app.Services.Configure(configure);
