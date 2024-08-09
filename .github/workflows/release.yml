@@ -133,8 +133,8 @@ jobs:
       - uses: actions/checkout@v4.1.1
       - name: Update version in helm chart
         run: |
-          sed -i "s/version: \".*\"/version: \"${{ needs.version.outputs.RELEASE_VERSION }}\"/" deployment%20templates/chart/bagetter/Chart.yaml
-          sed -i "s/appVersion: \".*\"/appVersion: \"${{ needs.version.outputs.RELEASE_VERSION }}\"/" deployment%20templates/chart/bagetter/Chart.yaml
+          sed -i "s/version: \".*\"/version: \"${{ needs.version.outputs.RELEASE_VERSION }}\"/" "deployment templates/chart/bagetter/Chart.yaml"
+          sed -i "s/appVersion: \".*\"/appVersion: \"${{ needs.version.outputs.RELEASE_VERSION }}\"/" "deployment templates/chart/bagetter/Chart.yaml"
       - name: Generate helm docs
         uses: losisin/helm-docs-github-action@v1
         with:
@@ -143,4 +143,4 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
           commit_message: "Release helm chart version ${{ needs.version.outputs.RELEASE_VERSION }}"
-          file_pattern: 'deployment%20templates/chart/bagetter/Chart.yaml deployment%20templates/chart/bagetter/README.md'
+          file_pattern: 'deployment\ templates/chart/bagetter/Chart.yaml deployment\ templates/chart/bagetter/README.md'
