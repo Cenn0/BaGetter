@@ -138,7 +138,7 @@ jobs:
       - name: Generate helm docs
         uses: losisin/helm-docs-github-action@v1
         with:
-          chart-search-root: deployment%20templates
+          chart-search-root: "deployment templates"
       - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
