@@ -132,7 +132,7 @@ jobs:
     env:
       CHART_DIR: deployment templates/chart
       CHART_REPO: bagetter/helm-chart-repo
-      CHART_REPO_BRANCH: master
+      CHART_REPO_BRANCH: main
     steps:
       - uses: actions/checkout@v4.1.1
       - name: Update version in helm chart
