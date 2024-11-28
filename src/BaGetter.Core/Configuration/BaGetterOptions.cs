@@ -1,3 +1,4 @@
+using System;
 using BaGetter.Core.Configuration;
 
 namespace BaGetter.Core;
@@ -52,8 +53,12 @@ public class BaGetterOptions
     /// <summary>
     /// If this is set to a value, it will limit the number of versions that can be pushed for a package.
     /// the older versions will be deleted.
+    /// This setting is not used anymore and is deprecated.
     /// </summary>
+    [Obsolete("MaxVersionsPerPackage is deprecated. Please configure RetentionOptions parameters instead.")]
     public uint? MaxVersionsPerPackage { get; set; } = null;
+
+    public RetentionOptions Retention { get; set; }
 
     public DatabaseOptions Database { get; set; }
 
