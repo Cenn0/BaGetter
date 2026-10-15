@@ -46,9 +46,12 @@ public class InMemoryPackageDatabase : IPackageDatabase
         return Task.FromResult((IReadOnlyList<Package>)_packages.Where(p => p.Id == id).ToList().AsReadOnly());
     }
 
-    public async Task<Package> FindOrNullAsync(string id, NuGetVersion version, bool includeUnlisted, CancellationToken cancellationToken)
+    public Task<Package> FindOrNullAsync(string id, NuGetVersion version, bool includeUnlisted, CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(_packages.FirstOrDefault(p =>
+            string.Equals(p.Id, id, StringComparison.OrdinalIgnoreCase) &&
+            p.Version == version && (includeUnlisted || p.Listed)));
     }
 
     public Task<bool> HardDeletePackageAsync(string id, NuGetVersion version, CancellationToken cancellationToken)
