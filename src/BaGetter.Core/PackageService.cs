@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using NuGet.Packaging;
 using NuGet.Versioning;
 
 namespace BaGetter.Core;
@@ -15,6 +16,7 @@ public class PackageService : IPackageService
     private readonly IUpstreamClient _upstream;
     private readonly IPackageIndexingService _indexer;
     private readonly ILogger<PackageService> _logger;
+    private readonly IPackageStorageService _storage;
 
     // Bounded process-wide gates: this service is registered as transient.
     // Distinct package/version pairs are striped across these gates.
@@ -22,16 +24,29 @@ public class PackageService : IPackageService
         .Select(_ => new SemaphoreSlim(1, 1))
         .ToArray();
 
+    // Kept for existing library consumers and in-memory unit tests.
     public PackageService(
         IPackageDatabase db,
         IUpstreamClient upstream,
         IPackageIndexingService indexer,
         ILogger<PackageService> logger)
+        : this(db, upstream, indexer, logger, null)
+    {
+    }
+
+    // The host resolves the longer constructor and can repair its storage.
+    public PackageService(
+        IPackageDatabase db,
+        IUpstreamClient upstream,
+        IPackageIndexingService indexer,
+        ILogger<PackageService> logger,
+        IPackageStorageService storage)
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _upstream = upstream ?? throw new ArgumentNullException(nameof(upstream));
         _indexer = indexer ?? throw new ArgumentNullException(nameof(indexer));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _storage = storage;
     }
 
     public async Task<IReadOnlyList<NuGetVersion>> FindPackageVersionsAsync(
@@ -106,6 +121,94 @@ public class PackageService : IPackageService
     public async Task<bool> ExistsAsync(string id, NuGetVersion version, CancellationToken cancellationToken)
     {
         return await MirrorAsync(id, version, cancellationToken);
+    }
+
+    /// <summary>
+    /// Repair a mirrored entry whose file has disappeared. Download and validate
+    /// *before* replacing its metadata so transient origin outages cannot destroy
+    /// the previous database record. Never replace manually published packages.
+    /// </summary>
+    public async Task<bool> RepairMirroredPackageAsync(
+        string id, NuGetVersion version, CancellationToken cancellationToken)
+    {
+        if (_storage == null) return false;
+
+        var source = _upstream.GetServiceIndexUrl();
+        if (string.IsNullOrWhiteSpace(source)) return false;
+
+        var lockKey = $"{id.ToLowerInvariant()}/{version.ToNormalizedString().ToLowerInvariant()}";
+        var lockIndex = (StringComparer.Ordinal.GetHashCode(lockKey) & int.MaxValue) % MirrorLocks.Length;
+        var gate = MirrorLocks[lockIndex];
+        await gate.WaitAsync(cancellationToken);
+        try
+        {
+            var entry = await _db.FindOrNullAsync(id, version, includeUnlisted: true, cancellationToken);
+            if (entry == null || !string.Equals(entry.CachedFrom, source, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            // Another request or replica may already have restored this entry.
+            try
+            {
+                using var pkg = await _storage.GetPackageStreamAsync(id, version, cancellationToken);
+                using var nuspec = await _storage.GetNuspecStreamAsync(id, version, cancellationToken);
+                return true;
+            }
+            catch (FileNotFoundException)
+            {
+                // Recover only known missing files.
+            }
+            catch (DirectoryNotFoundException)
+            {
+            }
+
+            _logger.LogWarning("Repairing missing mirrored content for {Id} {Version}", id, version);
+
+            try
+            {
+                using var content = await _upstream.DownloadPackageOrNullAsync(id, version, cancellationToken);
+                if (content == null)
+                    throw new InvalidDataException("Previously mirrored package is no longer available upstream");
+
+                using (var package = new PackageArchiveReader(content, leaveStreamOpen: true))
+                {
+                    await package.ValidatePackageEntriesAsync(cancellationToken);
+                    if (!string.Equals(package.NuspecReader.GetId(), id, StringComparison.OrdinalIgnoreCase) ||
+                        package.NuspecReader.GetVersion() != version)
+                    {
+                        throw new InvalidDataException("Upstream returned a different package ID or version");
+                    }
+                }
+
+                content.Position = 0;
+                // At this point, the old cached entry is unusable. Recovery may
+                // temporarily remove the row; if indexing fails, future requests
+                // can still repopulate the now-cold cache.
+                await _db.HardDeletePackageAsync(id, version, cancellationToken);
+                await _storage.DeleteAsync(id, version, cancellationToken);
+                var result = await _indexer.IndexAsync(content, source, cancellationToken);
+                if (result == PackageIndexingResult.Success ||
+                    (result == PackageIndexingResult.PackageAlreadyExists &&
+                     await _db.ExistsAsync(id, version, cancellationToken)))
+                    return true;
+
+                throw new InvalidDataException($"Package repair indexing failed: {result}");
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Failed to repair mirrored package {Id} {Version}", id, version);
+                throw new UpstreamUnavailableException($"Could not repair mirrored package {id} {version}", e);
+            }
+        }
+        finally
+        {
+            gate.Release();
+        }
     }
 
     public async Task AddDownloadAsync(string packageId, NuGetVersion version, CancellationToken cancellationToken)

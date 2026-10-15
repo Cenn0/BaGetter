@@ -2,6 +2,8 @@ using System;
 using System.IO;
 using System.Net;
 using System.Net.Http;
+using Microsoft.Extensions.DependencyInjection;
+using BaGetter.Core;
 using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
@@ -65,6 +67,57 @@ public class MirrorIntegrationTests : IDisposable
         using var response = await _downstreamClient.GetAsync("v3/package/TestData/1.2.3/TestData.1.2.3.nupkg");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task MissingCachedNupkgIsRefetchedWithoutChangingPackageVersion()
+    {
+        await _upstream.AddPackageAsync(_packageStream);
+        const string download = "v3/package/TestData/1.2.3/TestData.1.2.3.nupkg";
+
+        var original = await _downstreamClient.GetByteArrayAsync(download);
+        var store = _downstream.Services.GetRequiredService<IStorageService>();
+        await store.DeleteAsync("packages/testdata/1.2.3/testdata.1.2.3.nupkg");
+
+        // Database still lists the version, but its package bytes disappeared.
+        var repaired = await _downstreamClient.GetByteArrayAsync(download);
+        Assert.Equal(original, repaired);
+    }
+
+    [Fact]
+    public async Task MissingCachedNuspecIsRefetchedWithoutChangingManifest()
+    {
+        await _upstream.AddPackageAsync(_packageStream);
+        const string manifest = "v3/package/TestData/1.2.3/TestData.1.2.3.nuspec";
+
+        var original = await _downstreamClient.GetByteArrayAsync(manifest);
+        var store = _downstream.Services.GetRequiredService<IStorageService>();
+        await store.DeleteAsync("packages/testdata/1.2.3/testdata.nuspec");
+
+        var repaired = await _downstreamClient.GetByteArrayAsync(manifest);
+        Assert.Equal(original, repaired);
+    }
+
+    [Fact]
+    public async Task MissingLocallyPublishedPackageIsNotReplacedFromUpstream()
+    {
+        await _upstream.AddPackageAsync(_packageStream);
+        using var localPackage = TestResources.GetResourceStream(TestResources.Package);
+        await _downstream.AddPackageAsync(localPackage);
+        var store = _downstream.Services.GetRequiredService<IStorageService>();
+        await store.DeleteAsync("packages/testdata/1.2.3/testdata.1.2.3.nupkg");
+
+        // The in-process test host propagates the missing local file exception.
+        // Crucially it must not silently serve the upstream version.
+        await Assert.ThrowsAsync<FileNotFoundException>(() => _downstreamClient.GetAsync(
+            "v3/package/TestData/1.2.3/TestData.1.2.3.nupkg"));
+
+        // A locally published version is immutable, even if the upstream has
+        // an identically named version. An administrator must restore its bytes.
+        var database = _downstream.Services.GetRequiredService<IPackageDatabase>();
+        var version = NuGet.Versioning.NuGetVersion.Parse("1.2.3");
+        var entry = await database.FindOrNullAsync("TestData", version, true, default);
+        Assert.Null(entry.CachedFrom);
     }
 
     [Fact]
