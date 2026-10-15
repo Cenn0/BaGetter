@@ -6,6 +6,7 @@ using BaGetter.Core;
 using BaGetter.Protocol.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http;
 using NuGet.Versioning;
 
 namespace BaGetter.Web;
@@ -27,12 +28,19 @@ public class PackageContentController : Controller
         _content = content;
     }
 
+    [AcceptVerbs("GET", "HEAD")]
     public async Task<ActionResult<PackageVersionsResponse>> GetPackageVersionsAsync(string id, CancellationToken cancellationToken)
     {
         var versions = await _content.GetPackageVersionsOrNullAsync(id, cancellationToken);
         if (versions == null)
         {
             return NotFound();
+        }
+
+        if (HttpMethods.IsHead(Request.Method))
+        {
+            Response.ContentType = "application/json; charset=utf-8";
+            return new EmptyResult();
         }
 
         return versions;
@@ -45,6 +53,7 @@ public class PackageContentController : Controller
     /// <param name="version">Package version, e.g. "1.2.0".</param>
     /// <param name="cancellationToken">A token to cancel the task.</param>
     /// <returns>The requested package in an octet stream, or 404 not found if the package isn't found.</returns>
+    [AcceptVerbs("GET", "HEAD")]
     public async Task<IActionResult> DownloadPackageAsync(string id, string version, CancellationToken cancellationToken)
     {
         if (!NuGetVersion.TryParse(version, out var nugetVersion))
@@ -61,6 +70,7 @@ public class PackageContentController : Controller
         return File(packageStream, "application/octet-stream");
     }
 
+    [AcceptVerbs("GET", "HEAD")]
     public async Task<IActionResult> DownloadNuspecAsync(string id, string version, CancellationToken cancellationToken)
     {
         if (!NuGetVersion.TryParse(version, out var nugetVersion))
@@ -77,6 +87,7 @@ public class PackageContentController : Controller
         return File(nuspecStream, "text/xml");
     }
 
+    [AcceptVerbs("GET", "HEAD")]
     public async Task<IActionResult> DownloadReadmeAsync(string id, string version, CancellationToken cancellationToken)
     {
         if (!NuGetVersion.TryParse(version, out var nugetVersion))
@@ -93,6 +104,7 @@ public class PackageContentController : Controller
         return File(readmeStream, "text/markdown");
     }
 
+    [AcceptVerbs("GET", "HEAD")]
     public async Task<IActionResult> DownloadIconAsync(string id, string version, CancellationToken cancellationToken)
     {
         if (!NuGetVersion.TryParse(version, out var nugetVersion))
