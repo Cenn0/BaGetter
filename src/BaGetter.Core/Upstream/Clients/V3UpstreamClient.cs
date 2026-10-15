@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using BaGetter.Protocol;
 using BaGetter.Protocol.Models;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NuGet.Versioning;
 
 namespace BaGetter.Core;
@@ -18,16 +19,27 @@ public class V3UpstreamClient : IUpstreamClient
 {
     private readonly NuGetClient _client;
     private readonly ILogger<V3UpstreamClient> _logger;
+    private readonly UpstreamMetadataCache _metadataCache;
+    private readonly TimeSpan _metadataTtl;
     private static readonly char[] AuthorSeparator = [',', ';', '\t', '\n', '\r'];
     private static readonly char[] TagSeparator = [' '];
 
+    // Preserve the existing constructor for embedding scenarios.
     public V3UpstreamClient(NuGetClient client, ILogger<V3UpstreamClient> logger)
+        : this(client, logger, new UpstreamMetadataCache(), Options.Create(new MirrorOptions { MetadataCacheSeconds = 0 }))
     {
-        ArgumentNullException.ThrowIfNull(client);
-        ArgumentNullException.ThrowIfNull(logger);
+    }
 
-        _client = client;
-        _logger = logger;
+    public V3UpstreamClient(
+        NuGetClient client,
+        ILogger<V3UpstreamClient> logger,
+        UpstreamMetadataCache metadataCache,
+        IOptions<MirrorOptions> options)
+    {
+        _client = client ?? throw new ArgumentNullException(nameof(client));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _metadataCache = metadataCache ?? throw new ArgumentNullException(nameof(metadataCache));
+        _metadataTtl = TimeSpan.FromSeconds((options ?? throw new ArgumentNullException(nameof(options))).Value.MetadataCacheSeconds);
     }
     public string GetServiceIndexUrl() => _client.ServiceIndexUrl;
 
@@ -62,9 +74,12 @@ public class V3UpstreamClient : IUpstreamClient
     {
         try
         {
-            var packages = await _client.GetPackageMetadataAsync(id, cancellationToken);
-
-            return packages.Select(ToPackage).ToList();
+            return await _metadataCache.GetOrAddAsync(
+                $"v3:packages:{_client.ServiceIndexUrl}:{id.ToLowerInvariant()}",
+                _metadataTtl,
+                async () => (IReadOnlyList<Package>)(await _client.GetPackageMetadataAsync(id, cancellationToken))
+                    .Select(ToPackage).ToArray(),
+                cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -83,7 +98,11 @@ public class V3UpstreamClient : IUpstreamClient
     {
         try
         {
-            return await _client.ListPackageVersionsAsync(id, includeUnlisted: true, cancellationToken);
+            return await _metadataCache.GetOrAddAsync(
+                $"v3:versions:{_client.ServiceIndexUrl}:{id.ToLowerInvariant()}",
+                _metadataTtl,
+                () => _client.ListPackageVersionsAsync(id, includeUnlisted: true, cancellationToken),
+                cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

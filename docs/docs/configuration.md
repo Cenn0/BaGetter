@@ -96,6 +96,16 @@ By default, BaGetter is hosted at the root path `/` (e.g. `bagetter.your-company
 
 ## Enable read-through caching
 
+Upstream V3 version and registration metadata is cached **per BaGetter instance** for
+60 seconds by default to reduce requests to nuget.org. Set
+`Mirror:MetadataCacheSeconds` (0–3600) to adjust freshness; 0 disables metadata
+caching. A cached response is reused for the specified interval and package
+updates at the origin may therefore take up to this duration to become visible.
+Cached **.nupkg** bytes are kept independently of this metadata TTL. Transient
+upstream errors are never stored as successful cache entries.
+
+
+
 Read-through caching lets you index packages from an upstream source. You can use read-through
 caching to:
 

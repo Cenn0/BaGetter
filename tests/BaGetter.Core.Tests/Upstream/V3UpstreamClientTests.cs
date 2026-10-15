@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using BaGetter.Protocol;
 using BaGetter.Protocol.Models;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Moq;
 using NuGet.Versioning;
 using Xunit;
@@ -230,6 +232,25 @@ public class V3UpstreamClientTests
             Assert.NotNull(result);
             Assert.True(result.CanSeek);
         }
+    }
+
+    [Fact]
+    public async Task VersionLookupsUseProcessCacheUntilTtlExpires()
+    {
+        const string id = "Example.Tools";
+        var nuget = new Mock<NuGetClient>();
+        var expected = (IReadOnlyList<NuGetVersion>)new List<NuGetVersion> { new NuGetVersion("1.0.0") };
+        nuget.Setup(n => n.ListPackageVersionsAsync(id, true, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expected);
+
+        var cache = new UpstreamMetadataCache();
+        var options = Options.Create(new MirrorOptions { MetadataCacheSeconds = 60 });
+        var first = new V3UpstreamClient(nuget.Object, NullLogger<V3UpstreamClient>.Instance, cache, options);
+        var second = new V3UpstreamClient(nuget.Object, NullLogger<V3UpstreamClient>.Instance, cache, options);
+
+        Assert.Single(await first.ListPackageVersionsAsync(id, CancellationToken.None));
+        Assert.Single(await second.ListPackageVersionsAsync(id, CancellationToken.None));
+        nuget.Verify(n => n.ListPackageVersionsAsync(id, true, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     public class FactsBase

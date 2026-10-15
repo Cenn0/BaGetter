@@ -91,6 +91,8 @@ G0 and G1 should be pursued in parallel, but neither should be declared complete
 
 **Exit:** A pinned sample solution restores with BaGetter as its only source on supported platforms, including cold/warm repeat runs and a controlled upstream outage.
 
+**G2 candidate (2026-10-15):** Per-process V3 metadata cache with 60-second TTL, single-flight requests, bounded entry count and explicit operator setting. This is a first upstream-query reduction; cache invalidation/persistence and comprehensive request metrics remain open.
+
 ## G2: efficient, observable mirroring
 
 1. **Local-first reads and metadata cache:** PackageService currently consults upstream in FindPackageVersionsAsync and FindPackagesAsync even where local versions are known. Define a TTL/stale-on-error model; use conditional requests where supported, and prevent repeat metadata lookups on every warm request. Address [issue #267](https://github.com/bagetter/BaGetter/issues/267). Do not assume every upstream supports ETag/Last-Modified.

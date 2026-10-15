@@ -81,6 +81,7 @@ public static partial class DependencyInjectionExtensions
 
         services.TryAddSingleton<ISearchResponseBuilder, SearchResponseBuilder>();
         services.TryAddSingleton<NuGetClient>();
+        services.TryAddSingleton<UpstreamMetadataCache>();
         services.TryAddSingleton<NullSearchIndexer>();
         services.TryAddSingleton<NullSearchService>();
         services.TryAddSingleton<RegistrationBuilder>();

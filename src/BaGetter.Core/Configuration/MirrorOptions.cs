@@ -28,6 +28,13 @@ public class MirrorOptions : IValidatableObject
     [Range(0, int.MaxValue)]
     public int PackageDownloadTimeoutSeconds { get; set; } = 600;
 
+    /// <summary>
+    /// Cache successful upstream version and registration metadata lookups in memory.
+    /// Zero disables caching. Cache is per process and expires automatically.
+    /// </summary>
+    [Range(0, 3600)]
+    public int MetadataCacheSeconds { get; set; } = 60;
+
     public MirrorAuthenticationOptions Authentication { get; set; }
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
