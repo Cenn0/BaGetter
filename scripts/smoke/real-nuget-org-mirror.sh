@@ -67,7 +67,7 @@ start_server() {
     export Mirror__PackageSource="$source"
     export Mirror__PackageDownloadTimeoutSeconds=30
     export ApiKey=smoke-test-key
-    exec dotnet run --project src/BaGetter --configuration Release --no-build --no-restore
+    exec dotnet run --no-launch-profile --project src/BaGetter --configuration Release --no-build --no-restore
   ) >"$LOG" 2>&1 &
   SERVER_PID=$!
   local up=0
