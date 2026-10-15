@@ -15,6 +15,7 @@ namespace BaGetter.Azure
                 Id = entity.PartitionKey,
                 NormalizedVersionString = entity.NormalizedVersion,
                 OriginalVersionString = entity.OriginalVersion,
+                StorageRevision = entity.StorageRevision,
                 Authors = JsonSerializer.Deserialize<string[]>(entity.Authors),
                 Description = entity.Description,
                 Downloads = entity.Downloads,

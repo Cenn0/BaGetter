@@ -23,6 +23,7 @@ namespace BaGetter.Azure
                 Id = package.Id,
                 NormalizedVersion = normalizedVersion,
                 OriginalVersion = version.ToFullString(),
+                StorageRevision = package.StorageRevision,
                 Authors = JsonConvert.SerializeObject(package.Authors),
                 Description = package.Description,
                 Downloads = package.Downloads,

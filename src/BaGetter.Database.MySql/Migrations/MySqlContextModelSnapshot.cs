@@ -35,6 +35,10 @@ namespace BaGetter.Database.MySql.Migrations
                         .HasMaxLength(4000)
                         .HasColumnType("varchar(4000)");
 
+                    b.Property<string>("StorageRevision")
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)");
+
                     b.Property<string>("Description")
                         .HasMaxLength(4000)
                         .HasColumnType("varchar(4000)");

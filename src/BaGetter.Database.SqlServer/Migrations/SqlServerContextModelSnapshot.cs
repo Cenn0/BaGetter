@@ -34,6 +34,10 @@ namespace BaGetter.Database.SqlServer.Migrations
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
 
+                    b.Property<string>("StorageRevision")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(4000)")
                         .HasMaxLength(4000);

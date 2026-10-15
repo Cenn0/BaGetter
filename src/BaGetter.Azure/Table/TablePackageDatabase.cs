@@ -51,6 +51,14 @@ namespace BaGetter.Azure
             return PackageAddResult.Success;
         }
 
+        public async Task ReplaceAsync(Package package, CancellationToken cancellationToken)
+        {
+            // Azure Table offers atomic entity updates with no intermediate delete.
+            // Update (not upsert) prevents a deleted package from being resurrected.
+            await _table.UpdateEntityAsync(
+                TableOperationBuilder.GetEntity(package), ETag.All, TableUpdateMode.Replace, cancellationToken);
+        }
+
         public async Task AddDownloadAsync(
             string id,
             NuGetVersion version,
