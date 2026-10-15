@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -35,6 +36,9 @@ public class Startup
 
         services.AddBaGetterOptions<IISServerOptions>(nameof(IISServerOptions));
         services.AddBaGetterWebApplication(ConfigureBaGetterApplication);
+        // The web UI must obey private-feed credentials, not only NuGet endpoints.
+        services.Configure<RazorPagesOptions>(options =>
+            options.Conventions.AuthorizeFolder("/", AuthenticationConstants.NugetUserPolicy));
 
         // You can swap between implementations of subsystems like storage and search using BaGetter's configuration.
         // Each subsystem's implementation has a provider that reads the configuration to determine if it should be
@@ -92,11 +96,10 @@ public class Startup
         app.UsePathBase(options.PathBase);
 
         app.UseStaticFiles();
-        app.UseAuthentication();
         app.UseRouting();
-        app.UseAuthorization();
-
         app.UseCors(ConfigureBaGetterServer.CorsPolicy);
+        app.UseAuthentication();
+        app.UseAuthorization();
 
         app.UseOperationCancelledMiddleware();
 
