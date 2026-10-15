@@ -38,10 +38,48 @@ You can also use the `ApiKeys` array in order to manage multiple API keys for mu
 
 Both `ApiKey` and `ApiKeys` work in conjunction additively eg.: `or` `||` logical operator.
 
+**Security:** With neither key configured, BaGetter rejects publishing,
+deletion, relisting and symbol uploads (HTTP 401). Configure a strong secret
+before publishing. Existing instances relying on anonymous writes must set an
+API key before upgrading.
+
+Configuring `Authentication:Credentials` for private NuGet downloads also
+protects the web UI's package listings, details and statistics. With no
+download credentials configured, browsing remains public.
+
 Users will now have to provide the API key to push packages:
 
 ```shell
 dotnet nuget push -s http://localhost:5000/v3/index.json -k NUGET-SERVER-API-KEY package.1.0.0.nupkg
+```
+
+## Reverse proxies and cross-origin requests
+
+BaGetter only trusts forwarded headers from ASP.NET Core's trusted loopback
+proxies by default. If your reverse proxy runs at a different address,
+allowlist **only its actual IP** with `ForwardedHeaders:KnownProxies`:
+
+```json
+{
+    "ForwardedHeaders": {
+        "KnownProxies": ["172.20.0.5"]
+    }
+}
+```
+
+Do not allow untrusted clients to connect directly to the application.
+Your proxy must overwrite any client-supplied `X-Forwarded-*` headers.
+Use a stable proxy address if configuring proxies by IP.
+
+By default, BaGetter does not grant cross-origin browser access. If needed,
+allowlist specific browser origins through `Cors:AllowedOrigins`:
+
+```json
+{
+    "Cors": {
+        "AllowedOrigins": ["https://packages.example.org"]
+    }
+}
 ```
 
 ## Hosting on a different path

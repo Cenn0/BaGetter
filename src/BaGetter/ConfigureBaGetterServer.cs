@@ -1,4 +1,7 @@
+using System;
+using System.Net;
 using BaGetter.Core;
+using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.Http.Features;
@@ -13,23 +16,28 @@ public class ConfigureBaGetterServer
     , IConfigureOptions<ForwardedHeadersOptions>
     , IConfigureOptions<IISServerOptions>
 {
-    public const string CorsPolicy = "AllowAll";
+    public const string CorsPolicy = "ConfiguredOrigins";
     private readonly BaGetterOptions _baGetterOptions;
+    private readonly IConfiguration _configuration;
 
-    public ConfigureBaGetterServer(IOptions<BaGetterOptions> baGetterOptions)
+    public ConfigureBaGetterServer(IOptions<BaGetterOptions> baGetterOptions, IConfiguration configuration)
     {
         _baGetterOptions = baGetterOptions.Value;
+        _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
     }
 
 
     public void Configure(CorsOptions options)
     {
-        // TODO: Consider disabling this on production builds.
-        options.AddPolicy(
-            CorsPolicy,
-            builder => builder.AllowAnyOrigin()
-                .AllowAnyMethod()
-                .AllowAnyHeader());
+        // NuGet CLI clients do not require browser CORS. Enable it explicitly.
+        var origins = _configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+        options.AddPolicy(CorsPolicy, builder =>
+        {
+            if (origins.Length > 0)
+            {
+                builder.WithOrigins(origins).AllowAnyMethod().AllowAnyHeader();
+            }
+        });
     }
 
     public void Configure(FormOptions options)
@@ -42,9 +50,18 @@ public class ConfigureBaGetterServer
     {
         options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
 
-        // Do not restrict to local network/proxy
-        options.KnownNetworks.Clear();
-        options.KnownProxies.Clear();
+        // Retain the framework's trusted-loopback defaults. Only configured
+        // reverse-proxy addresses are allowed to supply forwarded headers.
+        var proxies = _configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? [];
+        foreach (var proxy in proxies)
+        {
+            if (!IPAddress.TryParse(proxy, out var address))
+            {
+                throw new InvalidOperationException($"Invalid ForwardedHeaders:KnownProxies address: '{proxy}'");
+            }
+
+            options.KnownProxies.Add(address);
+        }
     }
 
     public void Configure(IISServerOptions options)
