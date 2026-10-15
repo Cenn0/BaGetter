@@ -192,6 +192,63 @@ public class PackageStorageServiceTests
         }
     }
 
+    public class RevisionedStorage : FactsBase
+    {
+        [Fact]
+        public async Task WritesAndReadsOnlyTheCommittedRevision()
+        {
+            var revision = "0123456789abcdef0123456789abcdef";
+            _package.StorageRevision = revision;
+            SetupPutResult(StoragePutResult.Success);
+            using var packageStream = StringStream("new package");
+            using var nuspecStream = StringStream("new nuspec");
+            await _target.SavePackageContentAsync(_package, packageStream, nuspecStream, null, null);
+
+            var selectedPath = Path.Combine("packages", "my.package", "1.2.3", "revisions", revision, "my.package.1.2.3.nupkg");
+            Assert.Contains(selectedPath, _puts.Keys);
+            Assert.DoesNotContain(PackagePath, _puts.Keys);
+            _storage.Setup(s => s.GetAsync(selectedPath, default)).ReturnsAsync(StringStream("new package"));
+            using var reader = await _target.GetPackageStreamAsync(_package, default);
+            Assert.Equal("new package", await ToStringAsync(reader));
+
+            _storage.Setup(s => s.DeleteAsync(It.IsAny<string>(), default)).Returns(Task.CompletedTask);
+            await _target.DeleteAsync(_package, default);
+            _storage.Verify(s => s.DeleteAsync(selectedPath, default), Times.Once);
+            _storage.Verify(s => s.DeleteAsync(PackagePath, default), Times.Never);
+        }
+
+        [Fact]
+        public async Task FailedNuspecWriteCleansNewRevisionNotLegacyFiles()
+        {
+            var revision = "0123456789abcdef0123456789abcdef";
+            _package.StorageRevision = revision;
+            var packagePath = Path.Combine("packages", "my.package", "1.2.3", "revisions", revision, "my.package.1.2.3.nupkg");
+            var nuspecPath = Path.Combine("packages", "my.package", "1.2.3", "revisions", revision, "my.package.nuspec");
+            _storage.Setup(s => s.PutAsync(packagePath, It.IsAny<Stream>(), It.IsAny<string>(), default))
+                .ReturnsAsync(StoragePutResult.Success);
+            _storage.Setup(s => s.PutAsync(nuspecPath, It.IsAny<Stream>(), It.IsAny<string>(), default))
+                .ThrowsAsync(new IOException("Injected partial-write failure"));
+            _storage.Setup(s => s.DeleteAsync(It.IsAny<string>(), default)).Returns(Task.CompletedTask);
+            using var packageStream = StringStream("package");
+            using var nuspecStream = StringStream("nuspec");
+            await Assert.ThrowsAsync<IOException>(() => _target.SavePackageContentAsync(_package, packageStream, nuspecStream, null, null));
+
+            _storage.Verify(s => s.DeleteAsync(packagePath, default), Times.Once);
+            _storage.Verify(s => s.DeleteAsync(nuspecPath, default), Times.Once);
+            _storage.Verify(s => s.DeleteAsync(PackagePath, default), Times.Never);
+        }
+
+        [Fact]
+        public async Task InvalidRevisionCannotEscapeStoragePath()
+        {
+            _package.StorageRevision = "../escape";
+            using var packageStream = StringStream("package");
+            using var nuspecStream = StringStream("nuspec");
+            await Assert.ThrowsAsync<InvalidDataException>(() =>
+                _target.SavePackageContentAsync(_package, packageStream, nuspecStream, null, null));
+            _storage.VerifyNoOtherCalls();
+        }
+    }
     public class GetPackageStreamAsync : FactsBase
     {
         [Fact]
