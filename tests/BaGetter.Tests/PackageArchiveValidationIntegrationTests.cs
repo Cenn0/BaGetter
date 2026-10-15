@@ -33,7 +33,7 @@ public sealed class PackageArchiveValidationIntegrationTests : IDisposable
 
         using var scope = _app.Services.CreateScope();
         var indexing = scope.ServiceProvider.GetRequiredService<IPackageIndexingService>();
-        var result = await indexing.IndexAsync(package);
+        var result = await indexing.IndexAsync(package, CancellationToken.None);
 
         Assert.Equal(PackageIndexingResult.InvalidPackage, result);
         var packages = scope.ServiceProvider.GetRequiredService<IPackageDatabase>();
@@ -50,7 +50,7 @@ public sealed class PackageArchiveValidationIntegrationTests : IDisposable
         using var scope = _app.Services.CreateScope();
         var indexing = scope.ServiceProvider.GetRequiredService<IPackageIndexingService>();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            () => indexing.IndexAsync(package, cancellationToken: cancellation.Token));
+            () => indexing.IndexAsync(package, cancellation.Token));
     }
 
     public void Dispose() => _app.Dispose();
