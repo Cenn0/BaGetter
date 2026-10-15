@@ -17,6 +17,14 @@ public class InMemoryPackageDatabase : IPackageDatabase
         return Task.FromResult(PackageAddResult.Success);
     }
 
+    public Task ReplaceAsync(Package package, CancellationToken cancellationToken)
+    {
+        var removed = _packages.RemoveAll(p => p.Id == package.Id && p.Version == package.Version);
+        if (removed == 0) throw new InvalidOperationException("Package does not exist");
+        _packages.Add(package);
+        return Task.CompletedTask;
+    }
+
     public Task AddDownloadAsync(string id, NuGetVersion version, CancellationToken cancellationToken)
     {
         throw new NotImplementedException();

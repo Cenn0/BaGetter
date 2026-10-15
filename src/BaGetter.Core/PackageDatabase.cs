@@ -34,6 +34,27 @@ public class PackageDatabase : IPackageDatabase
         }
     }
 
+    public async Task ReplaceAsync(Package package, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(package);
+
+        // Both SaveChanges calls belong to one database transaction. Readers keep
+        // observing the prior metadata and storage revision until commit.
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+        if (!await HardDeletePackageAsync(package.Id, package.Version, cancellationToken))
+        {
+            throw new InvalidOperationException("Cannot replace a package that no longer exists");
+        }
+
+        var result = await AddAsync(package, cancellationToken);
+        if (result != PackageAddResult.Success)
+        {
+            throw new InvalidOperationException($"Could not replace package metadata: {result}");
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+    }
+
     public async Task<bool> ExistsAsync(string id, CancellationToken cancellationToken)
     {
         return await _context
