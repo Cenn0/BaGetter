@@ -29,6 +29,21 @@ public class MirrorOptions : IValidatableObject
     public int PackageDownloadTimeoutSeconds { get; set; } = 600;
 
     /// <summary>
+    /// Number of additional attempts for transient upstream package/manifest
+    /// downloads (HTTP 408, 429, 500, 502, 503, 504 and connection errors).
+    /// A genuine 404 is never retried. Zero disables retries.
+    /// </summary>
+    [Range(0, 5)]
+    public int UpstreamMaxRetries { get; set; } = 2;
+
+    /// <summary>
+    /// Maximum wait between individual upstream retry attempts. If an
+    /// upstream Retry-After exceeds this budget, no retry is attempted.
+    /// </summary>
+    [Range(1, 60)]
+    public int UpstreamRetryMaxDelaySeconds { get; set; } = 5;
+
+    /// <summary>
     /// Cache successful upstream version and registration metadata lookups in memory.
     /// Zero disables caching. Cache is per process and expires automatically.
     /// </summary>
