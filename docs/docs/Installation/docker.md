@@ -67,8 +67,9 @@ dotnet nuget push -s http://localhost:5000/v3/index.json -k NUGET-SERVER-API-KEY
 
 :::warning
 
-The default API Key to publish packages is `NUGET-SERVER-API-KEY`.
-You should change this to a secret value to secure your server. See [Configure BaGetter](#configure-bagetter-optional).
+`NUGET-SERVER-API-KEY` is an example placeholder, **not** a default key.
+When no key is configured, package modification requests are rejected.
+Set your own strong API key in `bagetter.env` to publish packages.
 
 :::
 

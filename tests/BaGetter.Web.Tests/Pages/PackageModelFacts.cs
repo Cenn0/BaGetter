@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BaGetter.Core;
@@ -330,6 +331,33 @@ public class PackageModelFacts
         Assert.Equal(
             "<h1 id=\"my-readme\">My readme</h1>\n<p>Hello world!</p>\n",
             _target.Readme.Value);
+    }
+
+    [Fact]
+    public async Task ReadmeAndReleaseNotesDoNotRenderUntrustedHtml()
+    {
+        const string unsafeHtml = "<img src=x onerror=alert(1)>";
+        using var readmeStream = new MemoryStream(Encoding.UTF8.GetBytes(
+            "# Package instructions\n\n" + unsafeHtml));
+        var package = CreatePackage("1.0.0", hasReadme: true);
+        package.ReleaseNotes = "### Changes\n\n" + unsafeHtml;
+
+        _packages
+            .Setup(m => m.FindPackagesAsync("testpackage", _cancellation))
+            .ReturnsAsync(new List<Package> { package });
+        _content
+            .Setup(c => c.GetPackageReadmeStreamOrNullAsync(
+                "testpackage",
+                It.Is<NuGetVersion>(v => v.OriginalVersion == "1.0.0"),
+                _cancellation))
+            .ReturnsAsync(readmeStream);
+
+        await _target.OnGetAsync("testpackage", "1.0.0", _cancellation);
+
+        Assert.Contains("<h1", _target.Readme.Value);
+        Assert.Contains("<h3", _target.ParsedReleaseNotes.Value);
+        Assert.DoesNotContain("<img", _target.Readme.Value);
+        Assert.DoesNotContain("<img", _target.ParsedReleaseNotes.Value);
     }
 
     private Package CreatePackage(

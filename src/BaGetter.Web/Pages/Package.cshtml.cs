@@ -26,6 +26,7 @@ public class PackageModel : PageModel
     {
         MarkdownPipeline = new MarkdownPipelineBuilder()
             .UseAdvancedExtensions()
+            .DisableHtml()
             .Build();
     }
 
