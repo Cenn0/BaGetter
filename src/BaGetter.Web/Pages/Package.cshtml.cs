@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BaGetter.Core;
+using Ganss.Xss;
 using Markdig;
 using Microsoft.AspNetCore.Html;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -26,6 +27,7 @@ public class PackageModel : PageModel
     {
         MarkdownPipeline = new MarkdownPipelineBuilder()
             .UseAdvancedExtensions()
+            .DisableHtml()
             .Build();
     }
 
@@ -208,8 +210,7 @@ public class PackageModel : PageModel
         using var reader = new StreamReader(readmeStream);
         var readme = await reader.ReadToEndAsync(cancellationToken);
 
-        var readmeHtml = Markdown.ToHtml(readme, MarkdownPipeline);
-        return new HtmlString(readmeHtml);
+        return RenderSafeMarkdown(readme);
     }
 
     private HtmlString ParseReleaseNotes()
@@ -219,8 +220,25 @@ public class PackageModel : PageModel
             return HtmlString.Empty;
         }
 
-        var releseNotesHtml = Markdown.ToHtml(Package.ReleaseNotes, MarkdownPipeline);
-        return new HtmlString(releseNotesHtml);
+        return RenderSafeMarkdown(Package.ReleaseNotes);
+    }
+
+    private static HtmlString RenderSafeMarkdown(string markdown)
+    {
+        // Disabling raw Markdown HTML is not sufficient: Markdown links and
+        // attributes may still produce unsafe HTML. Sanitize the rendered
+        // fragment before bypassing Razor's HTML encoding with HtmlString.
+        var sanitizer = new HtmlSanitizer();
+        sanitizer.AllowedAttributes.Remove("style");
+        sanitizer.AllowedTags.Remove("form");
+        sanitizer.AllowedTags.Remove("input");
+        sanitizer.AllowedTags.Remove("button");
+        sanitizer.AllowedTags.Remove("textarea");
+        sanitizer.AllowedTags.Remove("select");
+        sanitizer.AllowedTags.Remove("option");
+
+        var rendered = Markdown.ToHtml(markdown, MarkdownPipeline);
+        return new HtmlString(sanitizer.Sanitize(rendered));
     }
 
     public class DependencyGroupModel
