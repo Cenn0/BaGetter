@@ -85,6 +85,41 @@ public class MirrorIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task MissingCachedNuspecIsRefetchedWithoutChangingManifest()
+    {
+        await _upstream.AddPackageAsync(_packageStream);
+        const string manifest = "v3/package/TestData/1.2.3/TestData.1.2.3.nuspec";
+
+        var original = await _downstreamClient.GetByteArrayAsync(manifest);
+        var store = _downstream.Services.GetRequiredService<IStorageService>();
+        await store.DeleteAsync("packages/testdata/1.2.3/testdata.nuspec");
+
+        var repaired = await _downstreamClient.GetByteArrayAsync(manifest);
+        Assert.Equal(original, repaired);
+    }
+
+    [Fact]
+    public async Task MissingLocallyPublishedPackageIsNotReplacedFromUpstream()
+    {
+        await _upstream.AddPackageAsync(_packageStream);
+        using var localPackage = TestResources.GetResourceStream(TestResources.Package);
+        await _downstream.AddPackageAsync(localPackage);
+        var store = _downstream.Services.GetRequiredService<IStorageService>();
+        await store.DeleteAsync("packages/testdata/1.2.3/testdata.1.2.3.nupkg");
+
+        using var response = await _downstreamClient.GetAsync(
+            "v3/package/TestData/1.2.3/TestData.1.2.3.nupkg");
+        Assert.NotEqual(HttpStatusCode.OK, response.StatusCode);
+
+        // A locally published version is immutable, even if the upstream has
+        // an identically named version. An administrator must restore its bytes.
+        var database = _downstream.Services.GetRequiredService<IPackageDatabase>();
+        var version = NuGet.Versioning.NuGetVersion.Parse("1.2.3");
+        var entry = await database.FindOrNullAsync("TestData", version, true, default);
+        Assert.Null(entry.CachedFrom);
+    }
+
+    [Fact]
     public async Task NuspecDownloadIncludesUpstream()
     {
         await _upstream.AddPackageAsync(_packageStream);
