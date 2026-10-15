@@ -54,9 +54,9 @@ public class PackageIndexingService : IPackageIndexingService
     {
         // Try to extract all the necessary information from the package.
         Package package;
-        Stream nuspecStream;
-        Stream readmeStream;
-        Stream iconStream;
+        Stream nuspecStream = null;
+        Stream readmeStream = null;
+        Stream iconStream = null;
 
         try
         {
@@ -93,14 +93,25 @@ public class PackageIndexingService : IPackageIndexingService
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            nuspecStream?.Dispose();
+            readmeStream?.Dispose();
+            iconStream?.Dispose();
             throw;
         }
         catch (Exception e)
         {
+            nuspecStream?.Dispose();
+            readmeStream?.Dispose();
+            iconStream?.Dispose();
             _logger.LogWarning(e, "Package archive validation failed");
-
             return PackageIndexingResult.InvalidPackage;
         }
+
+        // The staged nuspec, README and icon are DeleteOnClose temporary files.
+        // Release them on duplicates, failures, cancellation and successful publication.
+        using var nuspecLease = nuspecStream;
+        using var readmeLease = readmeStream;
+        using var iconLease = iconStream;
 
         // Every upload gets a private immutable revision. The database row is
         // the sole publication point: the previous revision stays readable.
