@@ -10,7 +10,6 @@ using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -48,8 +47,6 @@ public class Startup
         services.AddTransient(DependencyInjectionExtensions.GetServiceFromProviders<IPackageDatabase>);
         services.AddTransient(DependencyInjectionExtensions.GetServiceFromProviders<ISearchService>);
         services.AddTransient(DependencyInjectionExtensions.GetServiceFromProviders<ISearchIndexer>);
-
-        services.AddSingleton<IConfigureOptions<MvcRazorRuntimeCompilationOptions>, ConfigureRazorRuntimeCompilation>();
 
         services.AddHealthChecks();
 
