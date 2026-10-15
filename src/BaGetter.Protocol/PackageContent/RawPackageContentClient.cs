@@ -64,7 +64,7 @@ public class RawPackageContentClient : IPackageContentClient
             // Only an actual 404 means missing. A 429 or 5xx is an
             // upstream failure, never package content to be indexed.
             response.EnsureSuccessStatusCode();
-            return await response.Content.ReadAsStreamAsync(cancellationToken);
+            return await response.Content.ReadAsStreamAsync();
         }
         catch
         {
@@ -97,7 +97,7 @@ public class RawPackageContentClient : IPackageContentClient
             // Only an actual 404 means missing. A 429 or 5xx is an
             // upstream failure, never package content to be indexed.
             response.EnsureSuccessStatusCode();
-            return await response.Content.ReadAsStreamAsync(cancellationToken);
+            return await response.Content.ReadAsStreamAsync();
         }
         catch
         {
