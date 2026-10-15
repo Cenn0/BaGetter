@@ -383,7 +383,15 @@ This path and the name of the "Status" property are configurable if needed:
 
 ## Maximum package size
 
-The max package size default to 8GiB and can be configured using the `MaxPackageSizeGiB` setting. The NuGet gallery currently has a 250MB limit, which is enough for most packages.
+The maximum upload request size defaults to 8 GiB for backward compatibility,
+using `MaxPackageSizeGiB`. Unlike earlier versions, Kestrel no longer accepts
+unlimited raw request bodies. The limit also applies to multipart form uploads
+and IIS hosting.
+
+For a stricter limit, optionally set `MaxRequestBodySizeMiB` (in mebibytes).
+This cannot exceed `MaxPackageSizeGiB` and includes the request's multipart
+overhead. For most private feeds, start with 256 MiB and adjust based on actual
+package sizes. A reverse proxy must also enforce its own request limits.
 This can be useful if you are hosting a private feed and need to host large packages that include chocolatey installers, machine learning models, etc.
 
 ```json
@@ -391,6 +399,7 @@ This can be useful if you are hosting a private feed and need to host large pack
     ...
 
     "MaxPackageSizeGiB": 8,
+    "MaxRequestBodySizeMiB": 256,
 
     ...
 }
