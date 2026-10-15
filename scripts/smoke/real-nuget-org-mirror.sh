@@ -67,6 +67,8 @@ start_server() {
     export Mirror__PackageSource="$source"
     export Mirror__PackageDownloadTimeoutSeconds=30
     export ApiKey=smoke-test-key
+    # Record mirror fetches so the concurrency test can assert single-flight.
+    export Logging__Console__LogLevel__BaGetter=Information
     exec dotnet run --no-launch-profile --project src/BaGetter --configuration Release --no-build --no-restore
   ) >"$LOG" 2>&1 &
   SERVER_PID=$!
@@ -120,17 +122,33 @@ echo "Byte-identical cached package."
 
 echo "== 32 concurrent cold downloads of an uncached package =="
 COLD_URL="http://127.0.0.1:$PORT/v3/package/newtonsoft.json/13.0.3/newtonsoft.json.13.0.3.nupkg"
+pids=()
 for i in $(seq 1 32); do
   curl --noproxy '*' --fail --silent --show-error --max-time 120 \
     "$COLD_URL" -o "$TMP/parallel-$i.nupkg" &
+  pids+=("$!")
 done
-wait
+# Bare 'wait' returns success even if a background curl failed. Inspect each.
+for pid in "${pids[@]}"; do
+  wait "$pid"
+done
 for i in $(seq 1 32); do
   test -s "$TMP/parallel-$i.nupkg"
   cmp "$TMP/parallel-1.nupkg" "$TMP/parallel-$i.nupkg"
 done
-test -s "$STORAGE/packages/newtonsoft.json/13.0.3/newtonsoft.json.13.0.3.nupkg"
-echo "All 32 concurrent cold requests received identical bytes."
+NEWTONSOFT="$STORAGE/packages/newtonsoft.json/13.0.3/newtonsoft.json.13.0.3.nupkg"
+test -s "$NEWTONSOFT"
+cmp "$NEWTONSOFT" "$TMP/parallel-1.nupkg"
+curl --fail --silent --show-error --retry 3 --retry-delay 2 \
+  "$FLAT_BASE/newtonsoft.json/13.0.3/newtonsoft.json.13.0.3.nupkg" \
+  -o "$TMP/upstream-newtonsoft.nupkg"
+cmp "$TMP/upstream-newtonsoft.nupkg" "$NEWTONSOFT"
+FETCH_COUNT="$(grep -ic 'Package newtonsoft.json 13.0.3 does not exist locally' "$LOG" || true)"
+if [[ "$FETCH_COUNT" != "1" ]]; then
+  echo "Expected exactly one cold origin fetch for Newtonsoft.Json, saw $FETCH_COUNT" >&2
+  exit 1
+fi
+echo "All 32 concurrent cold requests returned identical upstream bytes with one cold fetch."
 
 echo "== Warm server cache / empty client cache =="
 restore_from_mirror_only
