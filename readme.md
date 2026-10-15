@@ -39,6 +39,13 @@ For more information, please refer to the [documentation].
 * **Cloud native**: supports [Docker][Docker doc link], [AWS][AWS doc link], [Google Cloud][GCP doc link], [Alibaba Cloud][Aliyun doc link]，[Tencent Cloud][Tencent doc link]
 * **Offline support**: [Mirror a NuGet server][Read through caching] to speed up builds and enable offline downloads
 
+## 🗺️ Development roadmap
+
+See the [fork development roadmap](ROADMAP.md) for prioritized milestones,
+including qualification of the **nuget.org read-through mirror**, cache reliability,
+search/full-proxy capabilities and .NET modernization. These are plans for
+Cenn0/BaGetter, not a statement of upstream BaGetter's release commitments.
+
 ## 🤝 Contributing
 
 We welcome contributions! Check out the [Contributing Guide](CONTRIBUTING.md) to get started.
