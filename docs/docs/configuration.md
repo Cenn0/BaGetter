@@ -220,6 +220,12 @@ If your build server generates many nuget packages, your BaGetter server can qui
 There is an optional config section for `Retention` and the following parameters can be enabled to limit history for each level of the version. If none of these are set, there are no cleaning rules enforced. Each parameter is optional, e.g. if you specify only a `MaxPatchVersions`, the package limit will only enforced within each major and minor version combination.
 Packages deleted are always the oldest based on version numbers.
 
+Retention is evaluated when **any** limit is set. During read-through mirroring,
+the package currently being fetched is temporarily protected from deletion so the
+requesting client can download it. Subsequent indexing operations may apply
+retention to that older version. Avoid automatic deletion if your builds must be
+reproducible across long periods.
+
 - MaxMajorVersions: Maximum number of major versions for each package
 - MaxMinorVersions: Maximum number of minor versions for each major version
 - MaxPatchVersions: Maximum number of patch versions for each major + minor version
