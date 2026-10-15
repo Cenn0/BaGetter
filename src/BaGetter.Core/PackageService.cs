@@ -153,6 +153,10 @@ public class PackageService : IPackageService
             {
                 using var pkg = await _storage.GetPackageStreamAsync(entry, cancellationToken);
                 using var nuspec = await _storage.GetNuspecStreamAsync(entry, cancellationToken);
+                if (entry.HasReadme)
+                    using (var readme = await _storage.GetReadmeStreamAsync(entry, cancellationToken)) { }
+                if (entry.HasEmbeddedIcon)
+                    using (var icon = await _storage.GetIconStreamAsync(entry, cancellationToken)) { }
                 return true;
             }
             catch (FileNotFoundException)

@@ -50,7 +50,10 @@ public class Startup
 
         // Periodically remove old, unreferenced immutable filesystem revisions.
         // Storage-only leftovers are safe but otherwise consume disk indefinitely.
-        services.AddHostedService<PackageRevisionGarbageCollector>();
+        // Cleanup is opt-in: without bounded write durations an ancient paused
+        // upload could outlive the GC grace period and race publication.
+        if (Configuration.GetValue<bool>("Storage:EnableRevisionCleanup"))
+            services.AddHostedService<PackageRevisionGarbageCollector>();
 
         services.AddHealthChecks();
 

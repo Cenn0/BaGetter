@@ -62,8 +62,13 @@ packages/<lowercase-id>/<normalized-version>/
     icon              # optional
 ```
 
-The filesystem server checks for old unreferenced revisions every six hours,
-with a two-day minimum age. Cleanup reads the **current database row** before
+The optional filesystem collector checks for old unreferenced revisions every
+six hours, with a two-day minimum age. It is disabled by default; enable it
+only after verifying bounded upload durations and storage permissions:
+
+```text
+Storage__EnableRevisionCleanup=true
+``` Cleanup reads the **current database row** before
 deleting and fails closed if the DB is unavailable. A very long-running or
 suspended upload (over two days) is not safe from a concurrent cleanup sweep;
 do not use this unattended policy for environments permitting uploads blocked
