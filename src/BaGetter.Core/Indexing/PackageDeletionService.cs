@@ -111,7 +111,7 @@ public class PackageDeletionService : IPackageDeletionService
     {
         // list all versions of the package
         var packages = await _packages.FindAsync(package.Id, includeUnlisted: true, cancellationToken);
-        if (packages is null || packages.Count <= maxMajor) return 0;
+        if (packages is null || packages.Count == 0) return 0;
 
         var goodVersions = new HashSet<NuGetVersion>();
 
@@ -143,7 +143,10 @@ public class PackageDeletionService : IPackageDeletionService
         }
 
         // sort by version and take everything except the last maxPackages
-        var versionsToDelete = packages.Where(p => !goodVersions.Contains(p.Version)).ToList();
+        // Do not remove the version currently being indexed. A read-through
+        // mirror must be able to serve the package it has just fetched.
+        var versionsToDelete = packages.Where(p =>
+            !goodVersions.Contains(p.Version) && p.Version != package.Version).ToList();
 
         var deleted = 0;
         foreach (var version in versionsToDelete)

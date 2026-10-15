@@ -1,5 +1,7 @@
 using System;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BaGetter.Core.Configuration;
@@ -25,9 +27,18 @@ public class ApiKeyAuthenticationService : IAuthenticationService
 
     private bool Authenticate(string apiKey)
     {
-        // No authentication is necessary if there is no required API key.
-        if (_apiKey == null && (_apiKeys.Length == 0)) return true;
+        // Never allow package modifications without a configured, nonempty API key.
+        // A null input must not match an absent legacy key.
+        if (string.IsNullOrWhiteSpace(apiKey)) return false;
 
-        return _apiKey == apiKey || _apiKeys.Any(x => x.Key.Equals(apiKey));
+        return (_apiKey != null && SecretsEqual(_apiKey, apiKey))
+            || _apiKeys.Any(x => !string.IsNullOrWhiteSpace(x?.Key) && SecretsEqual(x.Key, apiKey));
+    }
+
+    private static bool SecretsEqual(string expected, string actual)
+    {
+        var expectedBytes = Encoding.UTF8.GetBytes(expected);
+        var actualBytes = Encoding.UTF8.GetBytes(actual);
+        return CryptographicOperations.FixedTimeEquals(expectedBytes, actualBytes);
     }
 }
