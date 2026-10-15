@@ -15,6 +15,12 @@ public class PackageService : IPackageService
     private readonly IPackageIndexingService _indexer;
     private readonly ILogger<PackageService> _logger;
 
+    // Bounded process-wide gates: this service is registered as transient.
+    // Distinct package/version pairs are striped across these gates.
+    private static readonly SemaphoreSlim[] MirrorLocks = Enumerable.Range(0, 256)
+        .Select(_ => new SemaphoreSlim(1, 1))
+        .ToArray();
+
     public PackageService(
         IPackageDatabase db,
         IUpstreamClient upstream,
@@ -100,6 +106,30 @@ public class PackageService : IPackageService
             return true;
         }
 
+        // Multiple concurrent requests can observe the same cold cache.
+        // Use the same gate for case-insensitive package IDs and versions.
+        var lockKey = $"{id.ToLowerInvariant()}/{version.ToNormalizedString().ToLowerInvariant()}";
+        var lockIndex = (StringComparer.Ordinal.GetHashCode(lockKey) & int.MaxValue) % MirrorLocks.Length;
+        var gate = MirrorLocks[lockIndex];
+
+        await gate.WaitAsync(cancellationToken);
+        try
+        {
+            if (await _db.ExistsAsync(id, version, cancellationToken))
+            {
+                return true;
+            }
+
+            return await MirrorUncachedAsync(id, version, cancellationToken);
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    private async Task<bool> MirrorUncachedAsync(string id, NuGetVersion version, CancellationToken cancellationToken)
+    {
         var cacheFeedUrl = _upstream.GetServiceIndexUrl();
 
         _logger.LogInformation(
@@ -133,7 +163,13 @@ public class PackageService : IPackageService
                 version,
                 result);
 
-            return result == PackageIndexingResult.Success;
+            return result == PackageIndexingResult.Success ||
+                (result == PackageIndexingResult.PackageAlreadyExists &&
+                 await _db.ExistsAsync(id, version, cancellationToken));
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception e)
         {
@@ -143,7 +179,8 @@ public class PackageService : IPackageService
                 id,
                 version);
 
-            return false;
+            // Another server process may have completed the same index concurrently.
+            return await _db.ExistsAsync(id, version, cancellationToken);
         }
     }
 }
