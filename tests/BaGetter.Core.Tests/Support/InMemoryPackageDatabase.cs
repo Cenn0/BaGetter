@@ -17,6 +17,14 @@ public class InMemoryPackageDatabase : IPackageDatabase
         return Task.FromResult(PackageAddResult.Success);
     }
 
+    public Task ReplaceAsync(Package package, CancellationToken cancellationToken)
+    {
+        var removed = _packages.RemoveAll(p => p.Id == package.Id && p.Version == package.Version);
+        if (removed == 0) throw new InvalidOperationException("Package does not exist");
+        _packages.Add(package);
+        return Task.CompletedTask;
+    }
+
     public Task AddDownloadAsync(string id, NuGetVersion version, CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
@@ -38,9 +46,12 @@ public class InMemoryPackageDatabase : IPackageDatabase
         return Task.FromResult((IReadOnlyList<Package>)_packages.Where(p => p.Id == id).ToList().AsReadOnly());
     }
 
-    public async Task<Package> FindOrNullAsync(string id, NuGetVersion version, bool includeUnlisted, CancellationToken cancellationToken)
+    public Task<Package> FindOrNullAsync(string id, NuGetVersion version, bool includeUnlisted, CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(_packages.FirstOrDefault(p =>
+            string.Equals(p.Id, id, StringComparison.OrdinalIgnoreCase) &&
+            p.Version == version && (includeUnlisted || p.Listed)));
     }
 
     public Task<bool> HardDeletePackageAsync(string id, NuGetVersion version, CancellationToken cancellationToken)

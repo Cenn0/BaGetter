@@ -66,6 +66,8 @@ public class PackageDeletionService : IPackageDeletionService
             id,
             version);
 
+        // Capture the committed revision before removing its database record.
+        var previous = await _packages.FindOrNullAsync(id, version, true, cancellationToken);
         var found = await _packages.HardDeletePackageAsync(id, version, cancellationToken);
         if (!found)
         {
@@ -81,7 +83,10 @@ public class PackageDeletionService : IPackageDeletionService
             id,
             version);
 
-        await _storage.DeleteAsync(id, version, cancellationToken);
+        if (previous?.StorageRevision != null)
+            await _storage.DeleteAsync(previous, cancellationToken);
+        else
+            await _storage.DeleteAsync(id, version, cancellationToken);
 
         _logger.LogInformation(
             "Hard deleted package {PackageId} {PackageVersion} from storage",

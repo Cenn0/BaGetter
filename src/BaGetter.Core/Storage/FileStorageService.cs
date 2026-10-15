@@ -1,8 +1,10 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
+using NuGet.Versioning;
 
 namespace BaGetter.Core;
 
@@ -115,6 +117,83 @@ public class FileStorageService : IStorageService
 
         return Task.CompletedTask;
     }
+
+    /// <summary>
+    /// Reclaim immutable revision directories which are no longer referenced
+    /// by the database. Never touches legacy package paths.
+    /// </summary>
+    /// <remarks>
+    /// Use a substantial minimum age to avoid racing uploads which have not
+    /// published their database row yet. Only call against a live database.
+    /// </remarks>
+    public async Task<int> CleanupUnreferencedRevisionsAsync(
+        Func<string, NuGetVersion, string, CancellationToken, Task<bool>> isReferenced,
+        TimeSpan minimumAge,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(isReferenced);
+        if (minimumAge < TimeSpan.FromHours(24))
+            throw new ArgumentOutOfRangeException(nameof(minimumAge), "Minimum age must be at least 24 hours");
+
+        var root = Path.Combine(_storePath, "packages");
+        if (!Directory.Exists(root)) return 0;
+
+        var cutoff = DateTime.UtcNow - minimumAge;
+        var deleted = 0;
+        foreach (var idDirectory in Directory.EnumerateDirectories(root))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (IsLink(idDirectory)) continue;
+            var id = Path.GetFileName(idDirectory);
+            foreach (var versionDirectory in Directory.EnumerateDirectories(idDirectory))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (IsLink(versionDirectory) ||
+                    !NuGetVersion.TryParse(Path.GetFileName(versionDirectory), out var version))
+                    continue;
+
+                var revisions = Path.Combine(versionDirectory, "revisions");
+                if (!Directory.Exists(revisions) || IsLink(revisions)) continue;
+                foreach (var directory in Directory.EnumerateDirectories(revisions))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (IsLink(directory)) continue;
+
+                    var revision = Path.GetFileName(directory);
+                    if (!Guid.TryParseExact(revision, "N", out _) ||
+                        !string.Equals(revision, revision.ToLowerInvariant(), StringComparison.Ordinal))
+                        continue;
+
+                    // A recent directory or file can be part of an in-flight upload.
+                    if (Directory.GetLastWriteTimeUtc(directory) >= cutoff ||
+                        Directory.EnumerateFiles(directory, "*", SearchOption.TopDirectoryOnly)
+                            .Any(file => File.GetLastWriteTimeUtc(file) >= cutoff))
+                        continue;
+
+                    // If the DB is unavailable the delegate throws and cleanup stops
+                    // without deleting an unverified revision.
+                    if (await isReferenced(id, version, revision, cancellationToken)) continue;
+                    try
+                    {
+                        Directory.Delete(directory, recursive: true);
+                        deleted++;
+                    }
+                    catch (IOException)
+                    {
+                        // Files may still be open on Windows. Retry next sweep.
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        // An operator can resolve filesystem permissions.
+                    }
+                }
+            }
+        }
+        return deleted;
+    }
+
+    private static bool IsLink(string path) =>
+        (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
 
     private string GetFullPath(string path)
     {
