@@ -46,3 +46,24 @@ See [MIRROR.md](MIRROR.md) for mirror-specific limitations and acceptance criter
 ## Public endpoint safeguards
 
 Prefer a reverse proxy with valid TLS, explicit host/forwarded-header trust, access controls, request-size ceilings, rate limiting and network segmentation. Do not publish a write API just because read-only package consumption is required. Monitor disk utilization, HTTP errors and upstream latency. Verify permissions and provider behavior before claiming an installation is production-ready.
+
+## Fork release destinations and validation
+
+The tagged-release workflow belongs to **Cenn0/BaGetter**, not to upstream
+`bagetter/BaGetter`. After successful source verification on a `vX.Y.Z` tag,
+it creates a ZIP in this fork's GitHub Releases and builds a multi-architecture,
+**version-tagged** container image at `ghcr.io/cenn0/bagetter:X.Y.Z`.
+It does not automatically advance a `latest` tag. GHCR package visibility
+and access must be configured separately if anonymous pulls are intended.
+
+Publishing upstream NuGet package IDs, `bagetter/bagetter` Docker Hub tags or
+the upstream Helm repository is deliberately **disabled**. Those actions require
+fork-owned package identities, registry permissions and a separately reviewed
+release plan; merely creating a tag here must not publish under an upstream name.
+
+Before making a release, check the Linux/Windows Build matrix, the opt-in
+[real nuget.org mirror smoke](../.github/workflows/mirror-smoke.yml), and the
+[Docker startup/volume smoke](../.github/workflows/docker-smoke.yml). The
+container check builds the actual Dockerfile, starts it, probes
+`/v3/index.json` and `/health`, and restarts it with the same data volume.
+This does **not** replace backup/restore or provider-migration qualification.
