@@ -15,6 +15,8 @@ public partial class NuGetClientFactory
 {
     private readonly HttpClient _httpClient;
     private readonly string _serviceIndexUrl;
+    private readonly int _maxTransientRetries;
+    private readonly int _maxRetryDelaySeconds;
 
     /// <summary>The service index originally configured for this upstream.</summary>
     public string ServiceIndexUrl => _serviceIndexUrl;
@@ -39,10 +41,16 @@ public partial class NuGetClientFactory
     ///
     /// For NuGet.org, use https://api.nuget.org/v3/index.json
     /// </param>
-    public NuGetClientFactory(HttpClient httpClient, string serviceIndexUrl)
+    public NuGetClientFactory(HttpClient httpClient, string serviceIndexUrl, int maxTransientRetries = 0, int maxRetryDelaySeconds = 5)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _serviceIndexUrl = serviceIndexUrl ?? throw new ArgumentNullException(nameof(serviceIndexUrl));
+        if (maxTransientRetries is < 0 or > 5)
+            throw new ArgumentOutOfRangeException(nameof(maxTransientRetries));
+        if (maxRetryDelaySeconds is < 1 or > 60)
+            throw new ArgumentOutOfRangeException(nameof(maxRetryDelaySeconds));
+        _maxTransientRetries = maxTransientRetries;
+        _maxRetryDelaySeconds = maxRetryDelaySeconds;
 
         _mutex = new SemaphoreSlim(1, 1);
         _clients = null;
@@ -160,7 +168,8 @@ public partial class NuGetClientFactory
                     var autocompleteResourceUrl = serviceIndex.GetSearchAutocompleteResourceUrl();
 
                     // Create clients for required resources.
-                    var contentClient = new RawPackageContentClient(_httpClient, contentResourceUrl);
+                    var contentClient = new RawPackageContentClient(
+                        _httpClient, contentResourceUrl, _maxTransientRetries, _maxRetryDelaySeconds);
                     var metadataClient = new RawPackageMetadataClient(_httpClient, metadataResourceUrl);
                     var searchClient = new RawSearchClient(_httpClient, searchResourceUrl);
 
