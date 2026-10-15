@@ -2,6 +2,8 @@ using System;
 using System.IO;
 using System.Net;
 using System.Net.Http;
+using Microsoft.Extensions.DependencyInjection;
+using BaGetter.Core;
 using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
@@ -65,6 +67,21 @@ public class MirrorIntegrationTests : IDisposable
         using var response = await _downstreamClient.GetAsync("v3/package/TestData/1.2.3/TestData.1.2.3.nupkg");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task MissingCachedNupkgIsRefetchedWithoutChangingPackageVersion()
+    {
+        await _upstream.AddPackageAsync(_packageStream);
+        const string download = "v3/package/TestData/1.2.3/TestData.1.2.3.nupkg";
+
+        var original = await _downstreamClient.GetByteArrayAsync(download);
+        var store = _downstream.Services.GetRequiredService<IStorageService>();
+        await store.DeleteAsync("packages/testdata/1.2.3/testdata.1.2.3.nupkg");
+
+        // Database still lists the version, but its package bytes disappeared.
+        var repaired = await _downstreamClient.GetByteArrayAsync(download);
+        Assert.Equal(original, repaired);
     }
 
     [Fact]

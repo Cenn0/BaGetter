@@ -60,6 +60,14 @@ public interface IPackageService
     Task<bool> ExistsAsync(string id, NuGetVersion version, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Restore missing content of an already indexed mirrored package from its
+    /// original upstream. Never repairs (or overwrites) locally pushed packages.
+    /// Returns false when automatic recovery is not applicable.
+    /// </summary>
+    Task<bool> RepairMirroredPackageAsync(
+        string id, NuGetVersion version, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Increment a package's download count.
     /// </summary>
     /// <param name="packageId">The id of the package to update.</param>

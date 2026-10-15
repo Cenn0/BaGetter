@@ -53,8 +53,25 @@ public class DefaultPackageContentService : IPackageContentService
             return null;
         }
 
+        Stream result;
+        try
+        {
+            result = await _storage.GetPackageStreamAsync(id, version, cancellationToken);
+        }
+        catch (FileNotFoundException)
+        {
+            if (!await _packages.RepairMirroredPackageAsync(id, version, cancellationToken)) throw;
+            result = await _storage.GetPackageStreamAsync(id, version, cancellationToken);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            if (!await _packages.RepairMirroredPackageAsync(id, version, cancellationToken)) throw;
+            result = await _storage.GetPackageStreamAsync(id, version, cancellationToken);
+        }
+
+        // Only count successful package content access.
         await _packages.AddDownloadAsync(id, version, cancellationToken);
-        return await _storage.GetPackageStreamAsync(id, version, cancellationToken);
+        return result;
     }
 
     public async Task<Stream> GetPackageManifestStreamOrNullAsync(string id, NuGetVersion version, CancellationToken cancellationToken = default)
@@ -64,7 +81,20 @@ public class DefaultPackageContentService : IPackageContentService
             return null;
         }
 
-        return await _storage.GetNuspecStreamAsync(id, version, cancellationToken);
+        try
+        {
+            return await _storage.GetNuspecStreamAsync(id, version, cancellationToken);
+        }
+        catch (FileNotFoundException)
+        {
+            if (!await _packages.RepairMirroredPackageAsync(id, version, cancellationToken)) throw;
+            return await _storage.GetNuspecStreamAsync(id, version, cancellationToken);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            if (!await _packages.RepairMirroredPackageAsync(id, version, cancellationToken)) throw;
+            return await _storage.GetNuspecStreamAsync(id, version, cancellationToken);
+        }
     }
 
     public async Task<Stream> GetPackageReadmeStreamOrNullAsync(string id, NuGetVersion version, CancellationToken cancellationToken = default)
