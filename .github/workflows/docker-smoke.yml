@@ -1,0 +1,47 @@
+name: Docker and Fork Release Safety
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "Dockerfile"
+      - ".github/workflows/release.yml"
+      - ".github/workflows/docker-smoke.yml"
+      - "scripts/smoke/docker-startup.sh"
+  workflow_dispatch:
+  schedule:
+    - cron: "31 2 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  docker-smoke:
+    name: Build and boot fork image
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - name: Enforce fork-owned release destinations
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          workflow = Path(".github/workflows/release.yml").read_text()
+          forbidden = (
+              "bagetter/bagetter:",
+              "bagetter/helm-chart-repo",
+              "secrets.NUGET_API_KEY",
+              "secrets.DOCKERHUB_TOKEN",
+              "secrets.DOCKERHUB_USERNAME",
+              "dotnet nuget push",
+          )
+          assert all(term not in workflow for term in forbidden), "Release targets upstream destinations"
+          assert "ghcr.io/" in workflow and "packages: write" in workflow
+          assert "gh release create" in workflow
+          assert 'https://github.com/Cenn0/BaGetter' in Path("Dockerfile").read_text()
+          PY
+      - name: Build Docker image
+        run: docker build --build-arg Version=0.0.0-ci -t bagetter:smoke .
+      - name: Verify running container and persistent volume
+        run: bash scripts/smoke/docker-startup.sh
