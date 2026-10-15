@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -118,6 +119,45 @@ public class FileStorageServiceTests
 
             // Assert
             Assert.Equal(StoragePutResult.AlreadyExists, result);
+        }
+
+        [Fact]
+        public async Task CancelledOrInterruptedWritesDoNotLeavePartialPackages()
+        {
+            var path = Path.Combine(_storePath, "interrupted.nupkg");
+            using var content = new InterruptingStream();
+
+            await Assert.ThrowsAsync<IOException>(() =>
+                _target.PutAsync("interrupted.nupkg", content, "application/octet-stream"));
+
+            Assert.False(File.Exists(path));
+            Assert.Empty(Directory.GetFiles(_storePath, "*.tmp", SearchOption.AllDirectories));
+        }
+
+        [Fact]
+        public async Task ConcurrentIdenticalPutsAreIdempotent()
+        {
+            using var first = StringStream("Hello world");
+            using var second = StringStream("Hello world");
+
+            var results = await Task.WhenAll(
+                _target.PutAsync("same.nupkg", first, "application/octet-stream"),
+                _target.PutAsync("same.nupkg", second, "application/octet-stream"));
+
+            Assert.Contains(StoragePutResult.Success, results);
+            Assert.Contains(StoragePutResult.AlreadyExists, results);
+            Assert.Equal("Hello world", await File.ReadAllTextAsync(Path.Combine(_storePath, "same.nupkg")));
+            Assert.Empty(Directory.GetFiles(_storePath, "*.tmp", SearchOption.AllDirectories));
+        }
+
+        private sealed class InterruptingStream : MemoryStream
+        {
+            public override async Task CopyToAsync(
+                Stream destination, int bufferSize, CancellationToken cancellationToken)
+            {
+                await destination.WriteAsync(new byte[] { 1, 2, 3 }, cancellationToken);
+                throw new IOException("Simulated partial upload failure");
+            }
         }
 
         [Fact]
