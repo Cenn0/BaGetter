@@ -38,10 +38,48 @@ You can also use the `ApiKeys` array in order to manage multiple API keys for mu
 
 Both `ApiKey` and `ApiKeys` work in conjunction additively eg.: `or` `||` logical operator.
 
+**Security:** With neither key configured, BaGetter rejects publishing,
+deletion, relisting and symbol uploads (HTTP 401). Configure a strong secret
+before publishing. Existing instances relying on anonymous writes must set an
+API key before upgrading.
+
+Configuring `Authentication:Credentials` for private NuGet downloads also
+protects the web UI's package listings, details and statistics. With no
+download credentials configured, browsing remains public.
+
 Users will now have to provide the API key to push packages:
 
 ```shell
 dotnet nuget push -s http://localhost:5000/v3/index.json -k NUGET-SERVER-API-KEY package.1.0.0.nupkg
+```
+
+## Reverse proxies and cross-origin requests
+
+BaGetter only trusts forwarded headers from ASP.NET Core's trusted loopback
+proxies by default. If your reverse proxy runs at a different address,
+allowlist **only its actual IP** with `ForwardedHeaders:KnownProxies`:
+
+```json
+{
+    "ForwardedHeaders": {
+        "KnownProxies": ["172.20.0.5"]
+    }
+}
+```
+
+Do not allow untrusted clients to connect directly to the application.
+Your proxy must overwrite any client-supplied `X-Forwarded-*` headers.
+Use a stable proxy address if configuring proxies by IP.
+
+By default, BaGetter does not grant cross-origin browser access. If needed,
+allowlist specific browser origins through `Cors:AllowedOrigins`:
+
+```json
+{
+    "Cors": {
+        "AllowedOrigins": ["https://packages.example.org"]
+    }
+}
 ```
 
 ## Hosting on a different path
@@ -181,6 +219,12 @@ If your build server generates many nuget packages, your BaGetter server can qui
 
 There is an optional config section for `Retention` and the following parameters can be enabled to limit history for each level of the version. If none of these are set, there are no cleaning rules enforced. Each parameter is optional, e.g. if you specify only a `MaxPatchVersions`, the package limit will only enforced within each major and minor version combination.
 Packages deleted are always the oldest based on version numbers.
+
+Retention is evaluated when **any** limit is set. During read-through mirroring,
+the package currently being fetched is temporarily protected from deletion so the
+requesting client can download it. Subsequent indexing operations may apply
+retention to that older version. Avoid automatic deletion if your builds must be
+reproducible across long periods.
 
 - MaxMajorVersions: Maximum number of major versions for each package
 - MaxMinorVersions: Maximum number of minor versions for each major version
@@ -336,7 +380,7 @@ IIS Server options can be configured under the `IISServerOptions` key. The avail
 
 :::note
 
-If not specified, the `MaxRequestBodySize` in BaGetter defaults to 250MB (262144000 bytes), rather than the ASP.NET Core default of 30MB.
+HTTP request body limits are controlled by `MaxPackageSizeGiB` and optional `MaxRequestBodySizeMiB`. Ensure IIS and any reverse proxy use compatible limits. `IISServerOptions` can additionally be configured to restrict IIS-hosted deployments.
 
 :::
 

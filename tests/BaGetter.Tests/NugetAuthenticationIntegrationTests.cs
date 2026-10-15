@@ -70,6 +70,28 @@ public class NugetAuthenticationIntegrationTests : IDisposable
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
+    [Theory]
+    [InlineData("/")]
+    [InlineData("/packages/testpackage")]
+    [InlineData("/Upload")]
+    [InlineData("/Statistics")]
+    public async Task RazorPagesRequireConfiguredFeedCredentials(string path)
+    {
+        using var response = await _client.GetAsync(path);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task RazorPagesAcceptValidFeedCredentials()
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/");
+        request.Headers.Authorization = new AuthenticationHeaderValue(
+            "Basic", Convert.ToBase64String(Encoding.UTF8.GetBytes($"{Username}:{Password}")));
+
+        using var response = await _client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
     public void Dispose()
     {
         _app.Dispose();
