@@ -74,7 +74,7 @@ public class NugetAuthenticationIntegrationTests : IDisposable
     [InlineData("/")]
     [InlineData("/packages/testpackage")]
     [InlineData("/Upload")]
-    [InlineData("/Statistics")]
+    [InlineData("/stats")]
     public async Task RazorPagesRequireConfiguredFeedCredentials(string path)
     {
         using var response = await _client.GetAsync(path);
