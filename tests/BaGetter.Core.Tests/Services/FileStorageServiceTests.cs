@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
+using NuGet.Versioning;
 using Moq;
 using Xunit;
 
@@ -223,6 +224,55 @@ public class FileStorageServiceTests
                 await Assert.ThrowsAsync<ArgumentException>(async () =>
                     await _target.DeleteAsync(path));
             }
+        }
+    }
+
+    public class RevisionCleanup : FactsBase
+    {
+        [Fact]
+        public async Task DeletesOnlyAgedOrphansAndKeepsCommittedOrRecentRevisions()
+        {
+            var old = new string('a', 32);
+            var live = new string('b', 32);
+            var recent = new string('c', 32);
+            var baseDir = Path.Combine(_storePath, "packages", "test.package", "1.0.0", "revisions");
+            foreach (var revision in new[] { old, live, recent })
+            {
+                var folder = Path.Combine(baseDir, revision);
+                Directory.CreateDirectory(folder);
+                await File.WriteAllTextAsync(Path.Combine(folder, "test.nupkg"), revision);
+                if (revision != recent)
+                {
+                    File.SetLastWriteTimeUtc(Path.Combine(folder, "test.nupkg"), DateTime.UtcNow.AddDays(-4));
+                    Directory.SetLastWriteTimeUtc(folder, DateTime.UtcNow.AddDays(-4));
+                }
+            }
+
+            var count = await _target.CleanupUnreferencedRevisionsAsync(
+                (id, version, revision, ct) =>
+                {
+                    Assert.Equal("test.package", id);
+                    Assert.Equal(NuGetVersion.Parse("1.0.0"), version);
+                    return Task.FromResult(revision == live);
+                }, TimeSpan.FromDays(2));
+
+            Assert.Equal(1, count);
+            Assert.False(Directory.Exists(Path.Combine(baseDir, old)));
+            Assert.True(Directory.Exists(Path.Combine(baseDir, live)));
+            Assert.True(Directory.Exists(Path.Combine(baseDir, recent)));
+        }
+
+        [Fact]
+        public async Task DoesNotDeleteFilesWhenDatabaseLookupFails()
+        {
+            var revision = new string('a', 32);
+            var path = Path.Combine(_storePath, "packages", "test", "1.0.0", "revisions", revision);
+            Directory.CreateDirectory(path);
+            Directory.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddDays(-4));
+            await Assert.ThrowsAsync<IOException>(() => _target.CleanupUnreferencedRevisionsAsync(
+                (id, version, candidate, ct) => throw new IOException("Database unavailable"),
+                TimeSpan.FromDays(2)));
+            Assert.True(Directory.Exists(path));
         }
     }
 

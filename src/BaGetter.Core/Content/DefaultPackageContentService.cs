@@ -44,78 +44,55 @@ public class DefaultPackageContentService : IPackageContentService
     }
 
     public async Task<Stream> GetPackageContentStreamOrNullAsync(
-        string id,
-        NuGetVersion version,
-        CancellationToken cancellationToken = default)
+        string id, NuGetVersion version, CancellationToken cancellationToken = default)
     {
-        if (!await _packages.ExistsAsync(id, version, cancellationToken))
-        {
-            return null;
-        }
-
-        Stream result;
-        try
-        {
-            result = await _storage.GetPackageStreamAsync(id, version, cancellationToken);
-        }
-        catch (FileNotFoundException)
-        {
-            if (!await _packages.RepairMirroredPackageAsync(id, version, cancellationToken)) throw;
-            result = await _storage.GetPackageStreamAsync(id, version, cancellationToken);
-        }
-        catch (DirectoryNotFoundException)
-        {
-            if (!await _packages.RepairMirroredPackageAsync(id, version, cancellationToken)) throw;
-            result = await _storage.GetPackageStreamAsync(id, version, cancellationToken);
-        }
-
-        // Only count successful package content access.
-        await _packages.AddDownloadAsync(id, version, cancellationToken);
-        return result;
+        var stream = await GetWithMirrorRepairAsync(
+            id, version, _storage.GetPackageStreamAsync, cancellationToken);
+        if (stream != null)
+            await _packages.AddDownloadAsync(id, version, cancellationToken);
+        return stream;
     }
 
-    public async Task<Stream> GetPackageManifestStreamOrNullAsync(string id, NuGetVersion version, CancellationToken cancellationToken = default)
-    {
-        if (!await _packages.ExistsAsync(id, version, cancellationToken))
-        {
-            return null;
-        }
-
-        try
-        {
-            return await _storage.GetNuspecStreamAsync(id, version, cancellationToken);
-        }
-        catch (FileNotFoundException)
-        {
-            if (!await _packages.RepairMirroredPackageAsync(id, version, cancellationToken)) throw;
-            return await _storage.GetNuspecStreamAsync(id, version, cancellationToken);
-        }
-        catch (DirectoryNotFoundException)
-        {
-            if (!await _packages.RepairMirroredPackageAsync(id, version, cancellationToken)) throw;
-            return await _storage.GetNuspecStreamAsync(id, version, cancellationToken);
-        }
-    }
+    public Task<Stream> GetPackageManifestStreamOrNullAsync(string id, NuGetVersion version, CancellationToken cancellationToken = default)
+        => GetWithMirrorRepairAsync(id, version, _storage.GetNuspecStreamAsync, cancellationToken);
 
     public async Task<Stream> GetPackageReadmeStreamOrNullAsync(string id, NuGetVersion version, CancellationToken cancellationToken = default)
     {
         var package = await _packages.FindPackageOrNullAsync(id, version, cancellationToken);
-        if (package == null || !package.HasReadme)
-        {
-            return null;
-        }
-
-        return await _storage.GetReadmeStreamAsync(id, version, cancellationToken);
+        return package == null || !package.HasReadme ? null :
+            await GetWithMirrorRepairAsync(id, version, _storage.GetReadmeStreamAsync, cancellationToken);
     }
 
     public async Task<Stream> GetPackageIconStreamOrNullAsync(string id, NuGetVersion version, CancellationToken cancellationToken = default)
     {
         var package = await _packages.FindPackageOrNullAsync(id, version, cancellationToken);
-        if (package == null || !package.HasEmbeddedIcon)
+        return package == null || !package.HasEmbeddedIcon ? null :
+            await GetWithMirrorRepairAsync(id, version, _storage.GetIconStreamAsync, cancellationToken);
+    }
+
+    private async Task<Stream> GetWithMirrorRepairAsync(
+        string id, NuGetVersion version,
+        Func<Package, CancellationToken, Task<Stream>> reader,
+        CancellationToken cancellationToken)
+    {
+        var package = await _packages.FindPackageOrNullAsync(id, version, cancellationToken);
+        if (package == null) return null;
+
+        try
         {
-            return null;
+            return await reader(package, cancellationToken);
+        }
+        catch (FileNotFoundException)
+        {
+            if (!await _packages.RepairMirroredPackageAsync(id, version, cancellationToken)) throw;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            if (!await _packages.RepairMirroredPackageAsync(id, version, cancellationToken)) throw;
         }
 
-        return await _storage.GetIconStreamAsync(id, version, cancellationToken);
+        // The repair switched the committed pointer; discard the stale row.
+        package = await _packages.FindPackageOrNullAsync(id, version, cancellationToken);
+        return package == null ? null : await reader(package, cancellationToken);
     }
 }

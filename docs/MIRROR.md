@@ -44,6 +44,6 @@ Run the repository's dedicated [mirror smoke workflow](https://github.com/Cenn0/
 
 ## Operational risks
 
-The cache/database publication path does not provide a distributed atomic transaction. Per-package coordination in a single process cannot prove multi-replica safety. Do not assume consistency under shared mutable storage or network outages. Cached data should be treated as recoverable only when backed up or reproducibly fetched from the original trusted source. Locally published packages must never be replaced by upstream repair.
+The cache/database publication path provides an atomic database visibility boundary for newly uploaded immutable revisions (see [OPERATIONS.md](OPERATIONS.md)); it is not a distributed ACID transaction. Per-package coordination in a single process cannot prove multi-replica safety. Do not assume consistency under shared mutable storage or network outages. Cached data should be treated as recoverable only when backed up or reproducibly fetched from the original trusted source. Locally published packages must never be replaced by upstream repair.
 
 For priority, exit criteria and upstream PR references see [ROADMAP.md](../ROADMAP.md).

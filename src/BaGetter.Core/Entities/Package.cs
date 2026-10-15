@@ -37,6 +37,12 @@ public class Package
     public bool HasEmbeddedIcon { get; set; }
     public bool IsPrerelease { get; set; }
     public string CachedFrom { get; set; }
+
+    /// <summary>
+    /// Immutable content revision. Null identifies packages written before revisioned publication.
+    /// Only the database record selects which complete revision is visible.
+    /// </summary>
+    public string StorageRevision { get; set; }
     public string ReleaseNotes { get; set; }
     public string Language { get; set; }
     public bool Listed { get; set; }

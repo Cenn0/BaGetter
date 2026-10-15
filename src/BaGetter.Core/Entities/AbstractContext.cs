@@ -103,6 +103,7 @@ public abstract class AbstractContext<TContext> : DbContext, IContext where TCon
         package.Property(p => p.Title).HasMaxLength(MaxPackageTitleLength);
         package.Property(p => p.RepositoryType).HasMaxLength(MaxRepositoryTypeLength);
         package.Property(p => p.CachedFrom).HasMaxLength(DefaultMaxStringLength);
+        package.Property(p => p.StorageRevision).HasMaxLength(32);
 
         package.Ignore(p => p.Version);
         package.Ignore(p => p.IconUrlString);

@@ -20,6 +20,13 @@ public interface IPackageDatabase
     Task<PackageAddResult> AddAsync(Package package, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Atomically replace the metadata for an existing package. The caller must have
+    /// persisted all content for its new immutable StorageRevision beforehand.
+    /// Implementations must never expose an intermediate missing package row.
+    /// </summary>
+    Task ReplaceAsync(Package package, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Attempt to find a package with the given id and version.
     /// </summary>
     /// <param name="id">The package's id.</param>
