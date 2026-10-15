@@ -114,6 +114,8 @@ Only start this gate after the core mirror is qualified.
 
 **Exit:** Upstream packages are discoverable in Visual Studio and CLI; the pinned sample solution restores through BaGetter alone; normal protocol requests do not require client egress to nuget.org; security tests reject SSRF and unauthorized proxy requests.
 
+**In-progress G0 implementation (2026-10-15):** A focused .NET 10 runtime/SDK retarget and current Microsoft.Extensions baseline, without importing the broad upstream authentication/UI changes. EF Core provider packages temporarily remain on 9.x to avoid unverified Pomelo/MySQL compatibility; a dedicated upgrade is still required before declaring the entire provider matrix supported. Provider migrations and integration smoke tests are mandatory.
+
 ## G0/G4: runtime, CI, security and operations
 
 - **.NET 10 LTS:** Isolate the runtime/SDK/EF-provider migration from the sweeping UI/identity changes proposed in [#269](https://github.com/bagetter/BaGetter/pull/269), [#278](https://github.com/bagetter/BaGetter/pull/278) and [#292](https://github.com/bagetter/BaGetter/pull/292). Update base images and all supported database providers; run migrations and restore tests on existing datasets. Validate packages and transitive NuGet dependencies, not just a green compilation.
