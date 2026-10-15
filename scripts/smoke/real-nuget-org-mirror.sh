@@ -29,7 +29,7 @@ command -v python3 >/dev/null
 mkdir -p "$TMP/client" "$TMP/storage" "$TMP/cli"
 cat > "$PROJ" <<'XML'
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><TargetFramework>net9.0</TargetFramework></PropertyGroup>
+  <PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup>
   <ItemGroup>
     <!-- Includes transitive dependencies; fixed version on nuget.org -->
     <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.10" />
@@ -67,6 +67,8 @@ start_server() {
     export Mirror__PackageSource="$source"
     export Mirror__PackageDownloadTimeoutSeconds=30
     export ApiKey=smoke-test-key
+    # Record mirror fetches so the concurrency test can assert single-flight.
+    export Logging__Console__LogLevel__BaGetter=Information
     exec dotnet run --no-launch-profile --project src/BaGetter --configuration Release --no-build --no-restore
   ) >"$LOG" 2>&1 &
   SERVER_PID=$!
@@ -118,6 +120,36 @@ curl --fail --silent --show-error --retry 3 --retry-delay 2 \
 cmp "$TMP/upstream.nupkg" "$PKG"
 echo "Byte-identical cached package."
 
+echo "== 32 concurrent cold downloads of an uncached package =="
+COLD_URL="http://127.0.0.1:$PORT/v3/package/newtonsoft.json/13.0.3/newtonsoft.json.13.0.3.nupkg"
+pids=()
+for i in $(seq 1 32); do
+  curl --noproxy '*' --fail --silent --show-error --max-time 120 \
+    "$COLD_URL" -o "$TMP/parallel-$i.nupkg" &
+  pids+=("$!")
+done
+# Bare 'wait' returns success even if a background curl failed. Inspect each.
+for pid in "${pids[@]}"; do
+  wait "$pid"
+done
+for i in $(seq 1 32); do
+  test -s "$TMP/parallel-$i.nupkg"
+  cmp "$TMP/parallel-1.nupkg" "$TMP/parallel-$i.nupkg"
+done
+NEWTONSOFT="$STORAGE/packages/newtonsoft.json/13.0.3/newtonsoft.json.13.0.3.nupkg"
+test -s "$NEWTONSOFT"
+cmp "$NEWTONSOFT" "$TMP/parallel-1.nupkg"
+curl --fail --silent --show-error --retry 3 --retry-delay 2 \
+  "$FLAT_BASE/newtonsoft.json/13.0.3/newtonsoft.json.13.0.3.nupkg" \
+  -o "$TMP/upstream-newtonsoft.nupkg"
+cmp "$TMP/upstream-newtonsoft.nupkg" "$NEWTONSOFT"
+FETCH_COUNT="$(grep -ic 'Package newtonsoft.json 13.0.3 does not exist locally' "$LOG" || true)"
+if [[ "$FETCH_COUNT" != "1" ]]; then
+  echo "Expected exactly one cold origin fetch for Newtonsoft.Json, saw $FETCH_COUNT" >&2
+  exit 1
+fi
+echo "All 32 concurrent cold requests returned identical upstream bytes with one cold fetch."
+
 echo "== Warm server cache / empty client cache =="
 restore_from_mirror_only
 
@@ -126,4 +158,7 @@ stop_server
 start_server "http://127.0.0.1:1/v3/index.json"
 restore_from_mirror_only
 cmp "$TMP/upstream.nupkg" "$PKG"
-echo "PASS: cold/warm/offline restores, transitive packages and byte identity."
+curl --noproxy '*' --fail --silent --show-error \
+  "$COLD_URL" -o "$TMP/offline-newtonsoft.nupkg"
+cmp "$TMP/offline-newtonsoft.nupkg" "$TMP/parallel-1.nupkg"
+echo "PASS: cold/warm/offline restores, byte identity, and 32 concurrent cold requests."
