@@ -11,6 +11,13 @@ public class NuGetClientFactoryTests : IClassFixture<ProtocolFixture>
         _target = fixture.NuGetClientFactory;
     }
 
+    [Fact]
+    public void FactoryBasedClientRetainsActualConfiguredUpstreamUrl()
+    {
+        Assert.Equal(TestData.ServiceIndexUrl, _target.ServiceIndexUrl);
+        Assert.Equal(TestData.ServiceIndexUrl, new NuGetClient(_target).ServiceIndexUrl);
+    }
+
     // TODO: Test package download
     // TODO: Test package manifest download
     // TODO: List package versions

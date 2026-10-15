@@ -183,9 +183,22 @@ public class PackageService : IPackageService
                 version,
                 result);
 
-            return result == PackageIndexingResult.Success ||
-                (result == PackageIndexingResult.PackageAlreadyExists &&
-                 await _db.ExistsAsync(id, version, cancellationToken));
+            if (result == PackageIndexingResult.Success)
+            {
+                return true;
+            }
+
+            if (result == PackageIndexingResult.PackageAlreadyExists &&
+                await _db.ExistsAsync(id, version, cancellationToken))
+            {
+                return true;
+            }
+
+            // A corrupted/invalid upstream artifact must not be advertised
+            // as a normal missing version, and must never poison the cache.
+            throw new UpstreamUnavailableException(
+                $"Upstream package {id} {version} could not be indexed ({result})",
+                new InvalidDataException($"Package indexing result: {result}"));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
