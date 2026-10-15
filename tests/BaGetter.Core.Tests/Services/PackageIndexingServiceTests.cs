@@ -70,6 +70,8 @@ public class PackageIndexingServiceTests
         var stream = new MemoryStream();
         builder.Save(stream);
         _packages.Setup(p => p.ExistsAsync(builder.Id, builder.Version, default)).ReturnsAsync(true);
+        _packages.Setup(p => p.FindOrNullAsync(builder.Id, builder.Version, true, default))
+            .ReturnsAsync(new Package { Id = builder.Id, Version = builder.Version });
 
         // Act
         var result = await _target.IndexAsync(stream, default);
@@ -100,10 +102,10 @@ public class PackageIndexingServiceTests
         var stream = new MemoryStream();
         builder.Save(stream);
         _packages.Setup(p => p.ExistsAsync(builder.Id, builder.Version, default)).ReturnsAsync(true);
-        _packages.Setup(p => p.HardDeletePackageAsync(builder.Id, builder.Version, default)).ReturnsAsync(true);
-        _packages.Setup(p => p.AddAsync(It.Is<Package>(p1 => p1.Id == builder.Id && p1.Version.ToString() == builder.Version.ToString()), default)).ReturnsAsync(PackageAddResult.Success);
-
-        _storage.Setup(s => s.DeleteAsync(builder.Id, builder.Version, default)).Returns(Task.CompletedTask);
+        _packages.Setup(p => p.FindOrNullAsync(builder.Id, builder.Version, true, default))
+            .ReturnsAsync(new Package { Id = builder.Id, Version = builder.Version });
+        _packages.Setup(p => p.ReplaceAsync(It.Is<Package>(p1 => p1.Id == builder.Id && p1.Version.ToString() == builder.Version.ToString()), default))
+            .Returns(Task.CompletedTask);
         _storage.Setup(s => s.SavePackageContentAsync(It.Is<Package>(p => p.Id == builder.Id && p.Version.ToString() == builder.Version.ToString()), stream, It.IsAny<FileStream>(), default, default, default)).Returns(Task.CompletedTask);
 
         _search.Setup(s => s.IndexAsync(It.Is<Package>(p => p.Id == builder.Id && p.Version.ToString() == builder.Version.ToString()), default)).Returns(Task.CompletedTask);
@@ -137,10 +139,10 @@ public class PackageIndexingServiceTests
         var stream = new MemoryStream();
         builder.Save(stream);
         _packages.Setup(p => p.ExistsAsync(builder.Id, builder.Version, default)).ReturnsAsync(true);
-        _packages.Setup(p => p.HardDeletePackageAsync(builder.Id, builder.Version, default)).ReturnsAsync(true);
-        _packages.Setup(p => p.AddAsync(It.Is<Package>(p1 => p1.Id == builder.Id && p1.Version.ToString() == builder.Version.ToString()), default)).ReturnsAsync(PackageAddResult.Success);
-
-        _storage.Setup(s => s.DeleteAsync(builder.Id, builder.Version, default)).Returns(Task.CompletedTask);
+        _packages.Setup(p => p.FindOrNullAsync(builder.Id, builder.Version, true, default))
+            .ReturnsAsync(new Package { Id = builder.Id, Version = builder.Version });
+        _packages.Setup(p => p.ReplaceAsync(It.Is<Package>(p1 => p1.Id == builder.Id && p1.Version.ToString() == builder.Version.ToString()), default))
+            .Returns(Task.CompletedTask);
         _storage.Setup(s => s.SavePackageContentAsync(It.Is<Package>(p => p.Id == builder.Id && p.Version.ToString() == builder.Version.ToString()), stream, It.IsAny<FileStream>(), default, default, default)).Returns(Task.CompletedTask);
 
         _search.Setup(s => s.IndexAsync(It.Is<Package>(p => p.Id == builder.Id && p.Version.ToString() == builder.Version.ToString()), default)).Returns(Task.CompletedTask);
@@ -174,6 +176,8 @@ public class PackageIndexingServiceTests
         var stream = new MemoryStream();
         builder.Save(stream);
         _packages.Setup(p => p.ExistsAsync(builder.Id, builder.Version, default)).ReturnsAsync(true);
+        _packages.Setup(p => p.FindOrNullAsync(builder.Id, builder.Version, true, default))
+            .ReturnsAsync(new Package { Id = builder.Id, Version = builder.Version });
 
         // Act
         var result = await _target.IndexAsync(stream, default);
@@ -258,12 +262,67 @@ public class PackageIndexingServiceTests
     [Fact]
     public async Task WhenDatabaseAddFailsBecausePackageAlreadyExists_ReturnsPackageAlreadyExists()
     {
-        await Task.Yield();
+        using var stream = MakePackage();
+        _packages.Setup(p => p.ExistsAsync("bagetter-test", NuGetVersion.Parse("1.0.0"), default))
+            .ReturnsAsync(false);
+        _packages.Setup(p => p.AddAsync(It.IsAny<Package>(), default))
+            .ReturnsAsync(PackageAddResult.PackageAlreadyExists);
+        _packages.Setup(p => p.FindOrNullAsync("bagetter-test", NuGetVersion.Parse("1.0.0"), true, default))
+            .ReturnsAsync((Package)null);
+        _storage.Setup(s => s.SavePackageContentAsync(It.IsAny<Package>(), stream, It.IsAny<FileStream>(), null, null, default))
+            .Returns(Task.CompletedTask);
+        _storage.Setup(s => s.DeleteAsync(It.Is<Package>(p => p.StorageRevision != null), default))
+            .Returns(Task.CompletedTask);
+
+        Assert.Equal(PackageIndexingResult.PackageAlreadyExists, await _target.IndexAsync(stream, default));
+        _storage.Verify(s => s.DeleteAsync(It.Is<Package>(p => p.StorageRevision != null), default), Times.Once);
+        _search.VerifyNoOtherCalls();
     }
 
     [Fact]
     public async Task ThrowsWhenStorageSaveThrows()
     {
-        await Task.Yield();
+        using var stream = MakePackage();
+        _packages.Setup(p => p.ExistsAsync("bagetter-test", NuGetVersion.Parse("1.0.0"), default))
+            .ReturnsAsync(false);
+        _packages.Setup(p => p.FindOrNullAsync("bagetter-test", NuGetVersion.Parse("1.0.0"), true, default))
+            .ReturnsAsync((Package)null);
+        _storage.Setup(s => s.SavePackageContentAsync(It.IsAny<Package>(), stream, It.IsAny<FileStream>(), null, null, default))
+            .ThrowsAsync(new IOException("Injected failure"));
+        _storage.Setup(s => s.DeleteAsync(It.Is<Package>(p => p.StorageRevision != null), default))
+            .Returns(Task.CompletedTask);
+
+        await Assert.ThrowsAsync<IOException>(() => _target.IndexAsync(stream, default));
+        _storage.Verify(s => s.DeleteAsync(It.Is<Package>(p => p.StorageRevision != null), default), Times.Once);
+        _packages.Verify(p => p.AddAsync(It.IsAny<Package>(), default), Times.Never);
+    }
+
+    [Fact]
+    public async Task FailedOverwriteMustNotDeleteOldRevision()
+    {
+        using var stream = MakePackage();
+        _mockOptions.AllowPackageOverwrites = PackageOverwriteAllowed.True;
+        var old = new Package { Id = "bagetter-test", Version = NuGetVersion.Parse("1.0.0"), StorageRevision = new string('a', 32) };
+        _packages.Setup(p => p.ExistsAsync(old.Id, old.Version, default)).ReturnsAsync(true);
+        _packages.Setup(p => p.FindOrNullAsync(old.Id, old.Version, true, default)).ReturnsAsync(old);
+        _packages.Setup(p => p.ReplaceAsync(It.IsAny<Package>(), default)).ThrowsAsync(new IOException("DB unavailable"));
+        _storage.Setup(s => s.SavePackageContentAsync(It.IsAny<Package>(), stream, It.IsAny<FileStream>(), null, null, default))
+            .Returns(Task.CompletedTask);
+        _storage.Setup(s => s.DeleteAsync(It.Is<Package>(p => p.StorageRevision != old.StorageRevision), default))
+            .Returns(Task.CompletedTask);
+
+        await Assert.ThrowsAsync<IOException>(() => _target.IndexAsync(stream, default));
+        _storage.Verify(s => s.DeleteAsync(It.Is<Package>(p => p.StorageRevision != old.StorageRevision), default), Times.Once);
+        _storage.Verify(s => s.DeleteAsync(old.Id, old.Version, default), Times.Never);
+    }
+
+    private MemoryStream MakePackage()
+    {
+        var builder = new PackageBuilder { Id = "bagetter-test", Version = NuGetVersion.Parse("1.0.0"), Description = "Test" };
+        builder.Authors.Add("Test Author");
+        builder.Files.Add(new PhysicalPackageFile { SourcePath = GetType().Assembly.Location, TargetPath = "lib/Test.dll" });
+        var stream = new MemoryStream();
+        builder.Save(stream);
+        return stream;
     }
 }
