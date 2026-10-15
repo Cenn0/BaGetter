@@ -1,9 +1,27 @@
-name: Release-Helm
+name: Helm Chart Validation
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/release-helm.yml"
+      - "deployment templates/chart/**"
   workflow_dispatch:
-    inputs:
-      tags:
-        description: 'Tags'
-        required: true
-        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  helm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - name: Install Helm
+        uses: azure/setup-helm@v4.3.0
+      - name: Resolve chart dependencies
+        run: helm dependency update "deployment templates/chart/bagetter"
+      - name: Lint Helm chart
+        run: helm lint "deployment templates/chart/bagetter"
+      - name: Render Helm templates
+        run: helm template bagetter "deployment templates/chart/bagetter" > /tmp/bagetter-rendered.yaml
