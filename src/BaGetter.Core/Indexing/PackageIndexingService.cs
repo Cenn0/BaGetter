@@ -102,18 +102,23 @@ public class PackageIndexingService : IPackageIndexingService
             return PackageIndexingResult.InvalidPackage;
         }
 
-        // The package is well-formed. Ensure this is a new package.
-        if (await _packages.ExistsAsync(package.Id, package.Version, cancellationToken))
+        // Every upload gets a private immutable revision. The database row is
+        // the sole publication point: the previous revision stays readable.
+        var replaceExisting = await _packages.ExistsAsync(package.Id, package.Version, cancellationToken);
+        if (replaceExisting)
         {
-            if (_options.Value.AllowPackageOverwrites == PackageOverwriteAllowed.False ||
-                (_options.Value.AllowPackageOverwrites == PackageOverwriteAllowed.PrereleaseOnly && !package.IsPrerelease))
+            var existing = await _packages.FindOrNullAsync(package.Id, package.Version, true, cancellationToken);
+            var repairingMirror = cacheFeedUrl != null &&
+                string.Equals(existing?.CachedFrom, cacheFeedUrl, StringComparison.OrdinalIgnoreCase);
+            if (!repairingMirror &&
+                (_options.Value.AllowPackageOverwrites == PackageOverwriteAllowed.False ||
+                (_options.Value.AllowPackageOverwrites == PackageOverwriteAllowed.PrereleaseOnly && !package.IsPrerelease)))
             {
                 return PackageIndexingResult.PackageAlreadyExists;
             }
-
-            await _packages.HardDeletePackageAsync(package.Id, package.Version, cancellationToken);
-            await _storage.DeleteAsync(package.Id, package.Version, cancellationToken);
         }
+
+        package.StorageRevision = Guid.NewGuid().ToString("N");
 
         // Archive entry integrity was validated above, prior to publication.
         _logger.LogInformation(
@@ -121,53 +126,35 @@ public class PackageIndexingService : IPackageIndexingService
             package.Id,
             package.NormalizedVersionString);
 
+        PackageAddResult result;
         try
         {
             packageStream.Position = 0;
-
             await _storage.SavePackageContentAsync(
-                package,
-                packageStream,
-                nuspecStream,
-                readmeStream,
-                iconStream,
-                cancellationToken);
-        }
-        catch (Exception e)
-        {
-            // This may happen due to concurrent pushes.
-            // TODO: Make IPackageStorageService.SavePackageContentAsync return a result enum so this
-            // can be properly handled.
-            _logger.LogError(
-                e,
-                "Failed to persist package {PackageId} {PackageVersion} content to storage",
-                package.Id,
-                package.NormalizedVersionString);
+                package, packageStream, nuspecStream, readmeStream, iconStream, cancellationToken);
 
+            if (replaceExisting)
+            {
+                // Atomic SQL transaction or Azure Table entity replacement.
+                await _packages.ReplaceAsync(package, cancellationToken);
+                result = PackageAddResult.Success;
+            }
+            else
+            {
+                result = await _packages.AddAsync(package, cancellationToken);
+            }
+            if (result == PackageAddResult.PackageAlreadyExists)
+            {
+                await CleanupUnpublishedRevisionAsync(package);
+                return PackageIndexingResult.PackageAlreadyExists;
+            }
+            if (result != PackageAddResult.Success)
+                throw new InvalidOperationException($"Unknown {nameof(PackageAddResult)} value: {result}");
+        }
+        catch
+        {
+            await CleanupUnpublishedRevisionAsync(package);
             throw;
-        }
-
-        _logger.LogInformation(
-            "Persisted package {Id} {Version} content to storage, saving metadata to database...",
-            package.Id,
-            package.NormalizedVersionString);
-
-        var result = await _packages.AddAsync(package, cancellationToken);
-        if (result == PackageAddResult.PackageAlreadyExists)
-        {
-            _logger.LogWarning(
-                "Package {Id} {Version} metadata already exists in database",
-                package.Id,
-                package.NormalizedVersionString);
-
-            return PackageIndexingResult.PackageAlreadyExists;
-        }
-
-        if (result != PackageAddResult.Success)
-        {
-            _logger.LogError($"Unknown {nameof(PackageAddResult)} value: {{PackageAddResult}}", result);
-
-            throw new InvalidOperationException($"Unknown {nameof(PackageAddResult)} value: {result}");
         }
 
         _logger.LogInformation(
@@ -221,5 +208,25 @@ public class PackageIndexingService : IPackageIndexingService
             package.NormalizedVersionString);
 
         return PackageIndexingResult.Success;
+    }
+
+    private async Task CleanupUnpublishedRevisionAsync(Package package)
+    {
+        // A failure can follow a successful commit with a lost acknowledgement.
+        // Never delete the revision if it is now referenced by the database.
+        // Database lookup errors intentionally leave content for later GC.
+        try
+        {
+            var committed = await _packages.FindOrNullAsync(
+                package.Id, package.Version, includeUnlisted: true, CancellationToken.None);
+            if (committed?.StorageRevision == package.StorageRevision) return;
+            await _storage.DeleteAsync(package, CancellationToken.None);
+        }
+        catch (Exception error)
+        {
+            _logger.LogError(error,
+                "Could not clean incomplete package revision {Revision} for {Id} {Version}",
+                package.StorageRevision, package.Id, package.NormalizedVersionString);
+        }
     }
 }

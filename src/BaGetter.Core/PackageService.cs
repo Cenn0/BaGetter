@@ -151,8 +151,8 @@ public class PackageService : IPackageService
             // Another request or replica may already have restored this entry.
             try
             {
-                using var pkg = await _storage.GetPackageStreamAsync(id, version, cancellationToken);
-                using var nuspec = await _storage.GetNuspecStreamAsync(id, version, cancellationToken);
+                using var pkg = await _storage.GetPackageStreamAsync(entry, cancellationToken);
+                using var nuspec = await _storage.GetNuspecStreamAsync(entry, cancellationToken);
                 return true;
             }
             catch (FileNotFoundException)
@@ -182,11 +182,7 @@ public class PackageService : IPackageService
                 }
 
                 content.Position = 0;
-                // At this point, the old cached entry is unusable. Recovery may
-                // temporarily remove the row; if indexing fails, future requests
-                // can still repopulate the now-cold cache.
-                await _db.HardDeletePackageAsync(id, version, cancellationToken);
-                await _storage.DeleteAsync(id, version, cancellationToken);
+                // Keep the previous DB row until a complete replacement is ready.
                 var result = await _indexer.IndexAsync(content, source, cancellationToken);
                 if (result == PackageIndexingResult.Success ||
                     (result == PackageIndexingResult.PackageAlreadyExists &&
