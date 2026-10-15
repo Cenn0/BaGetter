@@ -221,7 +221,9 @@ public static partial class DependencyInjectionExtensions
 
         return new NuGetClientFactory(
             httpClient,
-            options.PackageSource.ToString());
+            options.PackageSource.ToString(),
+            options.UpstreamMaxRetries,
+            options.UpstreamRetryMaxDelaySeconds);
     }
 
     private static IUpstreamClient UpstreamClientFactory(IServiceProvider provider)
