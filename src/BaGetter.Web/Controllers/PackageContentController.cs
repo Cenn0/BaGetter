@@ -6,6 +6,7 @@ using BaGetter.Core;
 using BaGetter.Protocol.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http;
 using NuGet.Versioning;
 
 namespace BaGetter.Web;
@@ -34,6 +35,12 @@ public class PackageContentController : Controller
         if (versions == null)
         {
             return NotFound();
+        }
+
+        if (HttpMethods.IsHead(Request.Method))
+        {
+            Response.ContentType = "application/json; charset=utf-8";
+            return new EmptyResult();
         }
 
         return versions;
