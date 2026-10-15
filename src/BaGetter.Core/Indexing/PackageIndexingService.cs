@@ -61,6 +61,9 @@ public class PackageIndexingService : IPackageIndexingService
         try
         {
             using var packageReader = new PackageArchiveReader(packageStream, leaveStreamOpen: true);
+            // Validate the complete archive before publishing any bytes or metadata.
+            // The old path checked the nuspec but did not validate archive entries.
+            await packageReader.ValidatePackageEntriesAsync(cancellationToken);
             package = packageReader.GetPackageMetadata();
             package.CachedFrom = cacheFeedUrl;
             package.Published = _time.UtcNow;
@@ -88,9 +91,13 @@ public class PackageIndexingService : IPackageIndexingService
                 iconStream = null;
             }
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception e)
         {
-            _logger.LogError(e, "Uploaded package is invalid");
+            _logger.LogWarning(e, "Package archive validation failed");
 
             return PackageIndexingResult.InvalidPackage;
         }
@@ -108,8 +115,7 @@ public class PackageIndexingService : IPackageIndexingService
             await _storage.DeleteAsync(package.Id, package.Version, cancellationToken);
         }
 
-        // TODO: Add more package validations
-        // TODO: Call PackageArchiveReader.ValidatePackageEntriesAsync
+        // Archive entry integrity was validated above, prior to publication.
         _logger.LogInformation(
             "Validated package {PackageId} {PackageVersion}, persisting content to storage...",
             package.Id,
