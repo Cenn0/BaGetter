@@ -67,3 +67,19 @@ Before making a release, check the Linux/Windows Build matrix, the opt-in
 container check builds the actual Dockerfile, starts it, probes
 `/v3/index.json` and `/health`, and restarts it with the same data volume.
 This does **not** replace backup/restore or provider-migration qualification.
+
+## PostgreSQL provider acceptance
+
+The optional [PostgreSQL persistence smoke](../.github/workflows/postgresql-smoke.yml)
+uses PostgreSQL 17 with the production application and applies the repository's
+real EF Core migrations on startup. It publishes a pinned test package with
+a temporary API key, confirms case-insensitive IDs, compares package bytes and
+restarts the application using the same database and file store. This tests one
+supported PostgreSQL configuration, not an exhaustive database-version matrix.
+A PostgreSQL-only backup remains insufficient: package and symbol blobs must
+also be backed up in the same consistent snapshot.
+
+Until the MySQL/Pomelo provider has a verified EF Core 10 stable release
+and a passing database migration/recovery matrix, keep the EF 9 provider
+dependencies aligned and do not describe EF Core 10 provider support as
+validated solely because the host itself uses .NET 10.
