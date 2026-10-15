@@ -1,92 +1,75 @@
-# BaGetter 🥖🛒
+# BaGetter — Cenn0 fork
 
-BaGetter is a lightweight [NuGet] and [symbol] server, written in C#.
-It's forked from [BaGet] for progressive and community driven development.
+A self-hosted NuGet V3 package and symbol server written in C# and ASP.NET Core. This repository is an independently maintained fork of [bagetter/BaGetter](https://github.com/bagetter/BaGetter), itself derived from [BaGet](https://github.com/loic-sharma/BaGet).
 
-<p align="center">
-  <img width="100%" src="https://user-images.githubusercontent.com/737941/50140219-d8409700-0258-11e9-94c9-dad24d2b48bb.png">
-</p>
+> **Fork status:** Development is ongoing. In particular, comprehensive nuget.org mirror qualification, recovery and multi-instance guarantees are **not** yet established. See the [roadmap](ROADMAP.md) and [mirror operations guide](docs/MIRROR.md). The upstream project's documentation, container images and releases do not automatically describe or contain changes made in this fork.
 
-![Build status] [![Docker image version]][Docker link] [![Discord][Discord image]][Discord link]
+## Quick start
 
-## 🚀 Getting Started
+### From source
 
-With Docker:
+Install the .NET SDK matching [global.json](global.json) (.NET 10 feature band or an allowed compatible roll-forward), then run:
 
-1. `docker run -p 5000:8080 -v ./bagetter-data:/data bagetter/bagetter:latest`
-2. Browse `http://localhost:5000/` in your browser
+```bash
+git clone https://github.com/Cenn0/BaGetter.git
+cd BaGetter
+dotnet restore
+dotnet run --project src/BaGetter --urls http://localhost:5000
+```
 
-With .NET:
+Open `http://localhost:5000/v3/index.json` to verify the NuGet V3 service index. The web UI is available at `http://localhost:5000/`. The default SQLite database and local filesystem storage are suitable for evaluation, not a documented highly available production topology.
 
-1. Install the [.NET SDK]
-2. Download and extract [BaGetter's latest release]
-3. Start the service with `dotnet BaGetter.dll`
-4. Browse `http://localhost:5000/` in your browser
+### Docker
 
-With IIS ([official microsoft documentation](https://learn.microsoft.com/aspnet/core/host-and-deploy/iis)):
+The fork contains a [Dockerfile](Dockerfile); build an image from **this repository** to run fork-specific code:
 
-1. Install the [hosting bundle](https://dotnet.microsoft.com/permalink/dotnetcore-current-windows-runtime-bundle-installer)
-2. Download the [zip release](https://github.com/bagetter/BaGetter/releases) of BaGetter
-3. Unpack the zip file contents to a folder of your choice
-4. Create a new or configure an existing IIS site to point its physical path to the folder where you unpacked the zip file
+```bash
+docker build -t bagetter-local:dev .
+docker volume create bagetter-data
+docker run --rm -p 127.0.0.1:5000:8080 -v bagetter-data:/data --name bagetter bagetter-local:dev
+```
 
-For more information, please refer to the [documentation].
+Use `http://localhost:5000/v3/index.json` as the feed URL. The image sets its SQLite database, packages and symbols under `/data`. Persist that volume across upgrades. The local-only host binding in this example is intentional; for external access use an authenticated TLS reverse proxy and a reviewed network/security configuration.
 
-## 📦 Features
+**Important:** `bagetter/bagetter:latest` on Docker Hub belongs to the upstream distribution and should not be assumed to include this fork's changes. Likewise, [upstream releases](https://github.com/bagetter/BaGetter/releases) do not build this fork.
 
-* **Cross-platform**: runs on Windows, macOS, and Linux!
-* **ARM** (64bit) **support**. You can host your NuGets on a device like Raspberry Pi!
-* **Cloud native**: supports [Docker][Docker doc link], [AWS][AWS doc link], [Google Cloud][GCP doc link], [Alibaba Cloud][Aliyun doc link]，[Tencent Cloud][Tencent doc link]
-* **Offline support**: [Mirror a NuGet server][Read through caching] to speed up builds and enable offline downloads
+## Core capabilities
 
-## 🗺️ Development roadmap
+- NuGet V3 feed for serving packages, with a web interface and symbol-serving capabilities.
+- Configurable storage and database providers (review provider-specific deployment requirements before production use).
+- Optional upstream package read-through caching via the `Mirror` configuration.
+- Development and regression testing with .NET 10, including dedicated mirror smoke-test infrastructure.
 
-See the [fork development roadmap](ROADMAP.md) for prioritized milestones,
-including qualification of the **nuget.org read-through mirror**, cache reliability,
-search/full-proxy capabilities and .NET modernization. These are plans for
-Cenn0/BaGetter, not a statement of upstream BaGetter's release commitments.
+**Mirror scope:** A read-through cache is **not** a transparent full NuGet V3 proxy. Upstream search/autocomplete, metadata routing, offline behavior for uncached packages, and HA/multi-replica correctness require separate verification. See [mirror guide](docs/MIRROR.md).
 
-## 🤝 Contributing
+## Documentation
 
-We welcome contributions! Check out the [Contributing Guide](CONTRIBUTING.md) to get started.
+| Document | Audience | Purpose |
+| --- | --- | --- |
+| [Deployment and configuration](docs/OPERATIONS.md) | Operators | Setup, persistent storage, configuration, secure exposure, backup and updates |
+| [NuGet.org mirror](docs/MIRROR.md) | Operators and developers | Read-through mode, known limitations and validation |
+| [Contributing](CONTRIBUTING.md) | Contributors | Build, test and contribution workflow |
+| [Roadmap](ROADMAP.md) | All | Planned changes, milestones and release gates |
+| [Upstream documentation](https://www.bagetter.com/) | Reference only | General BaGetter concepts; verify against this fork before applying |
 
-## 📄 License
+## Development
 
-This project is licensed under the [MIT License](LICENSE).
+```bash
+dotnet restore
+dotnet build --no-restore
+dotnet test --no-build
+```
 
-## 📞 Contact
+GitHub Actions runs the regular build/test matrix on Linux and Windows. A separate real-nuget.org mirror smoke workflow exists; its results are not implied by the regular test status.
 
-If you have questions, feel free to open an [issue] or join our [Discord Server][Discord link] for discussions.
+[View this fork's CI](https://github.com/Cenn0/BaGetter/actions) · [Issues](https://github.com/Cenn0/BaGetter/issues) · [Pull requests](https://github.com/Cenn0/BaGetter/pulls)
 
-## 🤝🏼 Contributors
+## Security and support
 
-Thanks to everyone who helps to make BaGetter better!
+Do not expose a writable package feed to untrusted networks without authentication, authorization, HTTPS, request limits and a backup/restore procedure. An empty `ApiKey` in the default configuration is **not** a production security setup. Review actual authorization behavior and your deployment before enabling publishing. Report security-sensitive findings privately where feasible; avoid posting credentials, tokens or exploitable deployment details in public issues.
 
-<a href="https://github.com/bagetter/BaGetter/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=bagetter/BaGetter" />
-</a>
+This fork is community-maintained; it does not imply commercial support, upstream endorsement, production certification or a fixed release schedule.
 
+## License and attribution
 
-[Build status]: https://img.shields.io/github/actions/workflow/status/bagetter/BaGetter/.github/workflows/main.yml?logo=github&logoColor=fff
-
-[Docker image version]: https://img.shields.io/docker/v/bagetter/bagetter?logo=docker&logoColor=fff&label=version
-[Docker link]: https://hub.docker.com/r/bagetter/bagetter
-[Docker doc link]: https://www.bagetter.com/docs/Installation/docker
-
-[Discord image]: https://img.shields.io/discord/1181167608427450388?logo=discord&logoColor=fff
-[Discord link]: https://discord.gg/XsAmm6f2hZ
-
-[NuGet]: https://learn.microsoft.com/nuget/what-is-nuget
-[symbol]: https://docs.microsoft.com/en-us/windows/desktop/debug/symbol-servers-and-symbol-stores
-[.NET SDK]: https://www.microsoft.com/net/download
-[Issue]: https://github.com/bagetter/BaGetter/issues
-[BaGet]: https://github.com/loic-sharma/BaGet
-
-[BaGetter's latest release]: https://github.com/bagetter/BaGetter/releases
-
-[Documentation]: https://www.bagetter.com/
-[Read through caching]: https://www.bagetter.com/docs/configuration#enable-read-through-caching
-[AWS doc link]: https://www.bagetter.com/docs/Installation/aws
-[GCP doc link]: https://www.bagetter.com/docs/Installation/gcp
-[Aliyun doc link]: https://www.bagetter.com/docs/Installation/aliyun
-[Tencent doc link]: https://www.bagetter.com/docs/Installation/tencent
+Distributed under the [MIT license](LICENSE). Original project and contributor attribution remain with [BaGetter](https://github.com/bagetter/BaGetter) and [BaGet](https://github.com/loic-sharma/BaGet).
