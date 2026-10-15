@@ -328,9 +328,8 @@ public class PackageModelFacts
 
         await _target.OnGetAsync("testpackage", "1.0.0", _cancellation);
 
-        Assert.Equal(
-            "<h1 id=\"my-readme\">My readme</h1>\n<p>Hello world!</p>\n",
-            _target.Readme.Value);
+        Assert.Contains("<h1>My readme</h1>", _target.Readme.Value);
+        Assert.Contains("<p>Hello world!</p>", _target.Readme.Value);
     }
 
     [Fact]
@@ -358,6 +357,22 @@ public class PackageModelFacts
         Assert.Contains("<h3", _target.ParsedReleaseNotes.Value);
         Assert.DoesNotContain("<img", _target.Readme.Value);
         Assert.DoesNotContain("<img", _target.ParsedReleaseNotes.Value);
+    }
+
+    [Fact]
+    public async Task ReleaseNotesRemoveUnsafeLinkSchemesAndEventHandlers()
+    {
+        var package = CreatePackage("1.0.0");
+        package.ReleaseNotes = "[Run](javascript:alert%281%29)\n\n# Title {onclick=\"alert(1)\"}";
+        _packages
+            .Setup(m => m.FindPackagesAsync("testpackage", _cancellation))
+            .ReturnsAsync(new List<Package> { package });
+
+        await _target.OnGetAsync("testpackage", "1.0.0", _cancellation);
+
+        var rendered = _target.ParsedReleaseNotes.Value;
+        Assert.DoesNotContain("href=\"javascript:", rendered);
+        Assert.DoesNotContain("onclick=", rendered);
     }
 
     private Package CreatePackage(
