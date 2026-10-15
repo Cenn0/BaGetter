@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -43,10 +44,10 @@ public class PackageStorageService : IPackageStorageService
         var lowercasedId = package.Id.ToLowerInvariant();
         var lowercasedNormalizedVersion = package.NormalizedVersionString.ToLowerInvariant();
 
-        var packagePath = PackagePath(lowercasedId, lowercasedNormalizedVersion);
-        var nuspecPath = NuspecPath(lowercasedId, lowercasedNormalizedVersion);
-        var readmePath = ReadmePath(lowercasedId, lowercasedNormalizedVersion);
-        var iconPath = IconPath(lowercasedId, lowercasedNormalizedVersion);
+        var packagePath = RevisionPath(package, PackagePath(lowercasedId, lowercasedNormalizedVersion));
+        var nuspecPath = RevisionPath(package, NuspecPath(lowercasedId, lowercasedNormalizedVersion));
+        var readmePath = RevisionPath(package, ReadmePath(lowercasedId, lowercasedNormalizedVersion));
+        var iconPath = RevisionPath(package, IconPath(lowercasedId, lowercasedNormalizedVersion));
 
         _logger.LogInformation(
             "Storing package {PackageId} {PackageVersion} at {Path}...",
@@ -54,6 +55,10 @@ public class PackageStorageService : IPackageStorageService
             lowercasedNormalizedVersion,
             packagePath);
 
+        // New uploads have a distinct immutable revision; on failure we remove
+        // only our own content, never the previously committed revision.
+        try
+        {
         // Store the package.
         var result = await _storage.PutAsync(packagePath, packageStream, PackageContentType, cancellationToken);
         if (result == StoragePutResult.Conflict)
@@ -138,6 +143,21 @@ public class PackageStorageService : IPackageStorageService
             "Finished storing package {PackageId} {PackageVersion}",
             lowercasedId,
             lowercasedNormalizedVersion);
+        }
+        catch
+        {
+            if (package.StorageRevision != null)
+            {
+                try { await DeleteAsync(package, CancellationToken.None); }
+                catch (Exception error)
+                {
+                    _logger.LogError(error,
+                        "Failed to remove incomplete package revision {Revision} for {Id} {Version}",
+                        package.StorageRevision, package.Id, package.NormalizedVersionString);
+                }
+            }
+            throw;
+        }
     }
 
     public async Task<Stream> GetPackageStreamAsync(string id, NuGetVersion version, CancellationToken cancellationToken)
@@ -160,20 +180,49 @@ public class PackageStorageService : IPackageStorageService
         return await GetStreamAsync(id, version, IconPath, cancellationToken);
     }
 
-    public async Task DeleteAsync(string id, NuGetVersion version, CancellationToken cancellationToken)
+    public Task DeleteAsync(string id, NuGetVersion version, CancellationToken cancellationToken)
+        => DeleteAsync(new Package { Id = id, Version = version }, cancellationToken);
+
+    public async Task DeleteAsync(Package package, CancellationToken cancellationToken)
     {
-        var lowercasedId = id.ToLowerInvariant();
-        var lowercasedNormalizedVersion = version.ToNormalizedString().ToLowerInvariant();
+        ArgumentNullException.ThrowIfNull(package);
+        var id = package.Id.ToLowerInvariant();
+        var version = package.NormalizedVersionString.ToLowerInvariant();
+        await _storage.DeleteAsync(RevisionPath(package, PackagePath(id, version)), cancellationToken);
+        await _storage.DeleteAsync(RevisionPath(package, NuspecPath(id, version)), cancellationToken);
+        await _storage.DeleteAsync(RevisionPath(package, ReadmePath(id, version)), cancellationToken);
+        await _storage.DeleteAsync(RevisionPath(package, IconPath(id, version)), cancellationToken);
+    }
 
-        var packagePath = PackagePath(lowercasedId, lowercasedNormalizedVersion);
-        var nuspecPath = NuspecPath(lowercasedId, lowercasedNormalizedVersion);
-        var readmePath = ReadmePath(lowercasedId, lowercasedNormalizedVersion);
-        var iconPath = IconPath(lowercasedId, lowercasedNormalizedVersion);
+    public Task<Stream> GetPackageStreamAsync(Package package, CancellationToken cancellationToken)
+        => GetRevisionStreamAsync(package, PackagePath, cancellationToken);
 
-        await _storage.DeleteAsync(packagePath, cancellationToken);
-        await _storage.DeleteAsync(nuspecPath, cancellationToken);
-        await _storage.DeleteAsync(readmePath, cancellationToken);
-        await _storage.DeleteAsync(iconPath, cancellationToken);
+    public Task<Stream> GetNuspecStreamAsync(Package package, CancellationToken cancellationToken)
+        => GetRevisionStreamAsync(package, NuspecPath, cancellationToken);
+
+    public Task<Stream> GetReadmeStreamAsync(Package package, CancellationToken cancellationToken)
+        => GetRevisionStreamAsync(package, ReadmePath, cancellationToken);
+
+    public Task<Stream> GetIconStreamAsync(Package package, CancellationToken cancellationToken)
+        => GetRevisionStreamAsync(package, IconPath, cancellationToken);
+
+    private Task<Stream> GetRevisionStreamAsync(Package package, Func<string, string, string> pathFunc, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(package);
+        return GetStreamAsync(package.Id, package.Version,
+            (id, version) => RevisionPath(package, pathFunc(id, version)), cancellationToken);
+    }
+
+    private static string RevisionPath(Package package, string legacyPath)
+    {
+        if (package.StorageRevision == null) return legacyPath;
+
+        // Reject malformed persisted identifiers before using them as path segments.
+        var revision = package.StorageRevision;
+        if (revision.Length != 32 || revision.Any(c => !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))))
+            throw new InvalidDataException("Invalid package storage revision");
+
+        return Path.Combine(Path.GetDirectoryName(legacyPath), "revisions", revision, Path.GetFileName(legacyPath));
     }
 
     private async Task<Stream> GetStreamAsync(

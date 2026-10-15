@@ -59,6 +59,15 @@ public interface IPackageStorageService
 
     Task<Stream> GetIconStreamAsync(string id, NuGetVersion version, CancellationToken cancellationToken);
 
+    /// <summary>Read a committed immutable revision selected by a package database row.</summary>
+    Task<Stream> GetPackageStreamAsync(Package package, CancellationToken cancellationToken);
+    Task<Stream> GetNuspecStreamAsync(Package package, CancellationToken cancellationToken);
+    Task<Stream> GetReadmeStreamAsync(Package package, CancellationToken cancellationToken);
+    Task<Stream> GetIconStreamAsync(Package package, CancellationToken cancellationToken);
+
+    /// <summary>Delete content belonging to only the specified revision.</summary>
+    Task DeleteAsync(Package package, CancellationToken cancellationToken);
+
     /// <summary>
     /// Remove a package's content from storage. This operation SHOULD succeed
     /// even if the package does not exist.
