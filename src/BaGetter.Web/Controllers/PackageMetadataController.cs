@@ -6,6 +6,7 @@ using BaGetter.Core;
 using BaGetter.Protocol.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http;
 using NuGet.Versioning;
 
 namespace BaGetter.Web;
@@ -26,7 +27,7 @@ public class PackageMetadataController : Controller
     }
 
     // GET v3/registration/{id}.json
-    [HttpGet]
+    [AcceptVerbs("GET", "HEAD")]
     public async Task<ActionResult<BaGetterRegistrationIndexResponse>> RegistrationIndexAsync(string id, CancellationToken cancellationToken)
     {
         var index = await _metadata.GetRegistrationIndexOrNullAsync(id, cancellationToken);
@@ -35,11 +36,17 @@ public class PackageMetadataController : Controller
             return NotFound();
         }
 
+        if (HttpMethods.IsHead(Request.Method))
+        {
+            Response.ContentType = "application/json; charset=utf-8";
+            return new EmptyResult();
+        }
+
         return index;
     }
 
     // GET v3/registration/{id}/{version}.json
-    [HttpGet]
+    [AcceptVerbs("GET", "HEAD")]
     public async Task<ActionResult<RegistrationLeafResponse>> RegistrationLeafAsync(string id, string version, CancellationToken cancellationToken)
     {
         if (!NuGetVersion.TryParse(version, out var nugetVersion))
@@ -51,6 +58,12 @@ public class PackageMetadataController : Controller
         if (leaf == null)
         {
             return NotFound();
+        }
+
+        if (HttpMethods.IsHead(Request.Method))
+        {
+            Response.ContentType = "application/json; charset=utf-8";
+            return new EmptyResult();
         }
 
         return leaf;
