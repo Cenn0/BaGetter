@@ -51,6 +51,12 @@ public class BaGetterOptions
     public uint MaxPackageSizeGiB { get; set; } = 8;
 
     /// <summary>
+    /// Optional stricter HTTP request-body limit in MiB (including multipart framing).
+    /// Defaults to the legacy MaxPackageSizeGiB limit if not configured.
+    /// </summary>
+    public uint? MaxRequestBodySizeMiB { get; set; }
+
+    /// <summary>
     /// If this is set to a value, it will limit the number of versions that can be pushed for a package.
     /// the older versions will be deleted.
     /// This setting is not used anymore and is deprecated.
