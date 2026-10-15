@@ -42,8 +42,27 @@ public class ConfigureBaGetterServer
 
     public void Configure(FormOptions options)
     {
-        // Allow packages up to ~8GiB in size
-        options.MultipartBodyLengthLimit = (long) _baGetterOptions.MaxPackageSizeGiB * int.MaxValue / 2;
+        options.MultipartBodyLengthLimit = GetMaxRequestBodyBytes(
+            _baGetterOptions.MaxPackageSizeGiB, _baGetterOptions.MaxRequestBodySizeMiB);
+    }
+
+    public static long GetMaxRequestBodyBytes(uint maxPackageSizeGiB, uint? maxRequestBodySizeMiB)
+    {
+        if (maxPackageSizeGiB == 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxPackageSizeGiB), "The package size must be positive");
+        }
+        if (maxRequestBodySizeMiB == 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxRequestBodySizeMiB), "The request limit must be positive");
+        }
+
+        const long mib = 1024L * 1024;
+        var packageLimit = checked((long)maxPackageSizeGiB * 1024 * mib);
+        // The optional MiB setting can reduce, but never bypass, the GiB cap.
+        return maxRequestBodySizeMiB.HasValue
+            ? Math.Min(packageLimit, checked((long)maxRequestBodySizeMiB.Value * mib))
+            : packageLimit;
     }
 
     public void Configure(ForwardedHeadersOptions options)
@@ -66,6 +85,7 @@ public class ConfigureBaGetterServer
 
     public void Configure(IISServerOptions options)
     {
-        options.MaxRequestBodySize = (long)_baGetterOptions.MaxPackageSizeGiB * int.MaxValue / 2;
+        options.MaxRequestBodySize = GetMaxRequestBodyBytes(
+            _baGetterOptions.MaxPackageSizeGiB, _baGetterOptions.MaxRequestBodySizeMiB);
     }
 }
