@@ -60,14 +60,14 @@ public class DefaultPackageContentService : IPackageContentService
     {
         var package = await _packages.FindPackageOrNullAsync(id, version, cancellationToken);
         return package == null || !package.HasReadme ? null :
-            await _storage.GetReadmeStreamAsync(package, cancellationToken);
+            await GetWithMirrorRepairAsync(id, version, _storage.GetReadmeStreamAsync, cancellationToken);
     }
 
     public async Task<Stream> GetPackageIconStreamOrNullAsync(string id, NuGetVersion version, CancellationToken cancellationToken = default)
     {
         var package = await _packages.FindPackageOrNullAsync(id, version, cancellationToken);
         return package == null || !package.HasEmbeddedIcon ? null :
-            await _storage.GetIconStreamAsync(package, cancellationToken);
+            await GetWithMirrorRepairAsync(id, version, _storage.GetIconStreamAsync, cancellationToken);
     }
 
     private async Task<Stream> GetWithMirrorRepairAsync(
