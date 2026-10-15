@@ -3,6 +3,7 @@ using BaGetter.Core;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Xunit;
 
@@ -38,13 +39,15 @@ public class UploadRequestLimitTests
     [Fact]
     public void MultipartAndIisUseSameLimit()
     {
-        var configurator = new ConfigureBaGetterServer(
-            Options.Create(new BaGetterOptions
-            {
-                MaxPackageSizeGiB = 8,
-                MaxRequestBodySizeMiB = 256
-            }),
-            new ConfigurationBuilder().Build());
+        var services = new ServiceCollection();
+        services.AddSingleton<IOptions<BaGetterOptions>>(Options.Create(new BaGetterOptions
+        {
+            MaxPackageSizeGiB = 8,
+            MaxRequestBodySizeMiB = 256
+        }));
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        using var serviceProvider = services.BuildServiceProvider();
+        var configurator = ActivatorUtilities.CreateInstance<ConfigureBaGetterServer>(serviceProvider);
 
         var form = new FormOptions();
         configurator.Configure(form);
