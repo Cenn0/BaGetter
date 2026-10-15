@@ -1,0 +1,28 @@
+name: NuGet.org Mirror Smoke
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/mirror-smoke.yml"
+      - "scripts/smoke/**"
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  real-nuget-org-mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-dotnet@v4.3.1
+        with:
+          global-json-file: global.json
+      - name: Build BaGetter host
+        run: dotnet build BaGetter.sln --configuration Release
+      - name: Restore from real nuget.org via BaGetter
+        run: bash scripts/smoke/real-nuget-org-mirror.sh
