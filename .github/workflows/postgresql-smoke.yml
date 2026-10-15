@@ -1,0 +1,48 @@
+name: PostgreSQL Persistence Smoke
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/postgresql-smoke.yml"
+      - "scripts/smoke/postgresql-persistence.sh"
+      - "src/BaGetter.Database.PostgreSql/**"
+      - "src/BaGetter.Core/**"
+      - "src/BaGetter/**"
+  workflow_dispatch:
+  schedule:
+    - cron: "43 3 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  postgresql:
+    name: Migrations, package publish and restart
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: bagetter_ci
+          POSTGRES_USER: bagetter
+          POSTGRES_PASSWORD: postgres_ci_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bagetter -d bagetter_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 15
+    env:
+      PG_CONNECTION: "Host=127.0.0.1;Port=5432;Database=bagetter_ci;Username=bagetter;Password=postgres_ci_test"
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-dotnet@v4.3.1
+        with:
+          global-json-file: global.json
+      - name: Build production server
+        run: dotnet build BaGetter.sln --configuration Release
+      - name: Run PostgreSQL persistence acceptance
+        run: bash scripts/smoke/postgresql-persistence.sh
