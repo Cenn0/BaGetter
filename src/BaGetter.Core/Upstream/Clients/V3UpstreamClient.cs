@@ -45,14 +45,14 @@ public class V3UpstreamClient : IUpstreamClient
         {
             return null;
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception e)
         {
-            _logger.LogError(
-                e,
-                "Failed to download {PackageId} {PackageVersion} from upstream",
-                id,
-                version);
-            return null;
+            _logger.LogError(e, "Failed to download {PackageId} {PackageVersion} from upstream", id, version);
+            throw new UpstreamUnavailableException($"Upstream failed to download {id} {version}", e);
         }
     }
 
@@ -66,10 +66,14 @@ public class V3UpstreamClient : IUpstreamClient
 
             return packages.Select(ToPackage).ToList();
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception e)
         {
             _logger.LogError(e, "Failed to mirror {PackageId}'s upstream metadata", id);
-            return new List<Package>();
+            throw new UpstreamUnavailableException($"Upstream metadata unavailable for {id}", e);
         }
     }
 
@@ -81,10 +85,14 @@ public class V3UpstreamClient : IUpstreamClient
         {
             return await _client.ListPackageVersionsAsync(id, includeUnlisted: true, cancellationToken);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception e)
         {
             _logger.LogError(e, "Failed to mirror {PackageId}'s upstream versions", id);
-            return new List<NuGetVersion>();
+            throw new UpstreamUnavailableException($"Upstream versions unavailable for {id}", e);
         }
     }
 

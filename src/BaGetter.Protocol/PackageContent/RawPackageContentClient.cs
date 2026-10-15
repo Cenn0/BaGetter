@@ -53,12 +53,24 @@ public class RawPackageContentClient : IPackageContentClient
         var url = $"{_packageContentUrl}/{id}/{version}/{id}.{version}.nupkg";
         var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
 
-        if (response.StatusCode == HttpStatusCode.NotFound)
+        try
         {
-            return null;
-        }
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                response.Dispose();
+                return null;
+            }
 
-        return await response.Content.ReadAsStreamAsync();
+            // Only an actual 404 means missing. A 429 or 5xx is an
+            // upstream failure, never package content to be indexed.
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadAsStreamAsync(cancellationToken);
+        }
+        catch
+        {
+            response.Dispose();
+            throw;
+        }
     }
 
     /// <inheritdoc />
@@ -74,11 +86,23 @@ public class RawPackageContentClient : IPackageContentClient
         var url = $"{_packageContentUrl}/{id}/{version}/{id}.nuspec";
         var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
 
-        if (response.StatusCode == HttpStatusCode.NotFound)
+        try
         {
-            return null;
-        }
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                response.Dispose();
+                return null;
+            }
 
-        return await response.Content.ReadAsStreamAsync();
+            // Only an actual 404 means missing. A 429 or 5xx is an
+            // upstream failure, never package content to be indexed.
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadAsStreamAsync(cancellationToken);
+        }
+        catch
+        {
+            response.Dispose();
+            throw;
+        }
     }
 }
