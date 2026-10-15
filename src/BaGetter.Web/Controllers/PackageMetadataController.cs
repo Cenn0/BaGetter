@@ -26,7 +26,7 @@ public class PackageMetadataController : Controller
     }
 
     // GET v3/registration/{id}.json
-    [HttpGet]
+    [AcceptVerbs("GET", "HEAD")]
     public async Task<ActionResult<BaGetterRegistrationIndexResponse>> RegistrationIndexAsync(string id, CancellationToken cancellationToken)
     {
         var index = await _metadata.GetRegistrationIndexOrNullAsync(id, cancellationToken);
@@ -39,7 +39,7 @@ public class PackageMetadataController : Controller
     }
 
     // GET v3/registration/{id}/{version}.json
-    [HttpGet]
+    [AcceptVerbs("GET", "HEAD")]
     public async Task<ActionResult<RegistrationLeafResponse>> RegistrationLeafAsync(string id, string version, CancellationToken cancellationToken)
     {
         if (!NuGetVersion.TryParse(version, out var nugetVersion))
