@@ -217,6 +217,45 @@ public class PackageIndexingServiceTests
     }
 
     [Fact]
+    public async Task RetentionRunsWhenOnlyPrereleaseLimitIsConfigured()
+    {
+        _retentionOptions.MaxPrereleaseVersions = 2;
+        var builder = new PackageBuilder
+        {
+            Id = "bagetter-test",
+            Version = NuGetVersion.Parse("1.0.0-beta.3"),
+            Description = "Test Description",
+        };
+        builder.Authors.Add("Test Author");
+        builder.Files.Add(new PhysicalPackageFile
+        {
+            SourcePath = GetType().Assembly.Location,
+            TargetPath = "lib/Test.dll",
+        });
+
+        using var stream = new MemoryStream();
+        builder.Save(stream);
+        _packages.Setup(p => p.ExistsAsync(builder.Id, builder.Version, default))
+            .ReturnsAsync(false);
+        _packages.Setup(p => p.AddAsync(It.IsAny<Package>(), default))
+            .ReturnsAsync(PackageAddResult.Success);
+        _storage.Setup(s => s.SavePackageContentAsync(
+            It.IsAny<Package>(), stream, It.IsAny<FileStream>(), null, null, default))
+            .Returns(Task.CompletedTask);
+        _search.Setup(s => s.IndexAsync(It.IsAny<Package>(), default))
+            .Returns(Task.CompletedTask);
+        _deleter.Setup(d => d.DeleteOldVersionsAsync(
+            It.IsAny<Package>(), null, null, null, 2, default))
+            .ReturnsAsync(0);
+
+        var result = await _target.IndexAsync(stream, default);
+
+        Assert.Equal(PackageIndexingResult.Success, result);
+        _deleter.Verify(d => d.DeleteOldVersionsAsync(
+            It.IsAny<Package>(), null, null, null, 2, default), Times.Once);
+    }
+
+    [Fact]
     public async Task WhenDatabaseAddFailsBecausePackageAlreadyExists_ReturnsPackageAlreadyExists()
     {
         await Task.Yield();
