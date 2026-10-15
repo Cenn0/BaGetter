@@ -29,7 +29,7 @@ command -v python3 >/dev/null
 mkdir -p "$TMP/client" "$TMP/storage" "$TMP/cli"
 cat > "$PROJ" <<'XML'
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><TargetFramework>net9.0</TargetFramework></PropertyGroup>
+  <PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup>
   <ItemGroup>
     <!-- Includes transitive dependencies; fixed version on nuget.org -->
     <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.10" />
@@ -118,6 +118,20 @@ curl --fail --silent --show-error --retry 3 --retry-delay 2 \
 cmp "$TMP/upstream.nupkg" "$PKG"
 echo "Byte-identical cached package."
 
+echo "== 32 concurrent cold downloads of an uncached package =="
+COLD_URL="http://127.0.0.1:$PORT/v3/package/newtonsoft.json/13.0.3/newtonsoft.json.13.0.3.nupkg"
+for i in $(seq 1 32); do
+  curl --noproxy '*' --fail --silent --show-error --max-time 120 \
+    "$COLD_URL" -o "$TMP/parallel-$i.nupkg" &
+done
+wait
+for i in $(seq 1 32); do
+  test -s "$TMP/parallel-$i.nupkg"
+  cmp "$TMP/parallel-1.nupkg" "$TMP/parallel-$i.nupkg"
+done
+test -s "$STORAGE/packages/newtonsoft.json/13.0.3/newtonsoft.json.13.0.3.nupkg"
+echo "All 32 concurrent cold requests received identical bytes."
+
 echo "== Warm server cache / empty client cache =="
 restore_from_mirror_only
 
@@ -126,4 +140,7 @@ stop_server
 start_server "http://127.0.0.1:1/v3/index.json"
 restore_from_mirror_only
 cmp "$TMP/upstream.nupkg" "$PKG"
-echo "PASS: cold/warm/offline restores, transitive packages and byte identity."
+curl --noproxy '*' --fail --silent --show-error \
+  "$COLD_URL" -o "$TMP/offline-newtonsoft.nupkg"
+cmp "$TMP/offline-newtonsoft.nupkg" "$TMP/parallel-1.nupkg"
+echo "PASS: cold/warm/offline restores, byte identity, and 32 concurrent cold requests."
