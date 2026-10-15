@@ -334,6 +334,9 @@ public class PackageServiceTests
             _upstream
                 .Setup(u => u.DownloadPackageOrNullAsync(_id, _version, _cancellationToken))
                 .ReturnsAsync(downloadStream);
+            _indexer
+                .Setup(i => i.IndexAsync(It.IsAny<Stream>(), It.IsAny<string>(), _cancellationToken))
+                .ReturnsAsync(PackageIndexingResult.Success);
 
             await TargetAsync();
 
