@@ -15,6 +15,7 @@ namespace BaGetter.Azure
         public string Id { get; set; }
         public string NormalizedVersion { get; set; }
         public string StorageRevision { get; set; }
+        public string CachedFrom { get; set; }
         public string OriginalVersion { get; set; }
         public string Authors { get; set; }
         public string Description { get; set; }

@@ -32,6 +32,61 @@ Back up the database and **all associated package/symbol blobs** as a consistent
 
 For Docker, retain `bagetter-data` between containers; avoid anonymous volumes for durable hosting. Before any upgrade, snapshot storage/database and review changes in [ROADMAP.md](../ROADMAP.md) and the PR history. Avoid multi-replica writes to shared SQLite/filesystem without independently validated coordination.
 
+## Atomically published package revisions
+
+**Guarantee:** A new upload writes the `.nupkg`, `.nuspec`, and optional README/icon
+to an immutable revision directory or object prefix first. The package row
+stores `StorageRevision` and is published **only after** the content write
+completes. Existing packages are updated inside one SQL transaction, or as a
+single Azure Table entity operation. A reader resolves all content through
+the committed revision pointer. Pre-upgrade package rows have a null revision
+and keep working with their original storage layout.
+
+This is **atomic visibility, not a distributed ACID/XA transaction**. The
+database cannot enlist filesystem, S3, Azure Blob or other object stores in
+one two-phase commit. A process crash may leave unreachable revision files,
+but they are not advertised to NuGet clients. A database commit that survives
+a storage-level durability failure can still produce a missing file. Operate
+storage and database with appropriate durability settings and back them up
+together. A missing mirrored file may be repaired from its authenticated
+upstream; a manually published package must be restored from backup.
+
+File storage organizes new artifacts as:
+
+```text
+packages/<lowercase-id>/<normalized-version>/
+  revisions/<32-hex-revision>/
+    <lowercase-id>.<normalized-version>.nupkg
+    <lowercase-id>.nuspec
+    readme            # optional
+    icon              # optional
+```
+
+The filesystem server checks for old unreferenced revisions every six hours,
+with a two-day minimum age. Cleanup reads the **current database row** before
+deleting and fails closed if the DB is unavailable. A very long-running or
+suspended upload (over two days) is not safe from a concurrent cleanup sweep;
+do not use this unattended policy for environments permitting uploads blocked
+for days. Cloud/object storage providers currently **do not have an automated
+orphan scanner**; use provider lifecycle processes only with a verified
+reference check or a separate reconciliation implementation. Never configure
+a blind age-based lifecycle rule that could delete referenced content.
+
+**Upgrade:** Apply database migrations and deploy one compatible version to
+every serving replica before allowing writes. A node running the older build
+cannot resolve revisioned package data and may write legacy paths. Do not mix
+old and new binaries in a rolling deployment. Before an upgrade or rollback,
+back up **both** the database and all object/file storage. A code-only
+rollback without restoring the prior DB and blob snapshot is unsafe. Azure
+Table Storage does not use the relational EF migrations, but its entities
+need the new `StorageRevision` field to remain intact.
+
+Hard delete removes the database row first and then its previously referenced
+files. It is therefore **logically immediate but physically eventual** if
+the process crashes between steps; filesystem cleanup can later reclaim
+the old unreferenced revision. This implementation does not promise that
+every deletion is durably or physically atomic across both resources.
+
 ## Operational validation
 
 1. Verify `/health` and `/v3/index.json` using the public canonical HTTPS address.
