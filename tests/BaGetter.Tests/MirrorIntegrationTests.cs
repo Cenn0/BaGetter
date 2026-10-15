@@ -76,8 +76,7 @@ public class MirrorIntegrationTests : IDisposable
         const string download = "v3/package/TestData/1.2.3/TestData.1.2.3.nupkg";
 
         var original = await _downstreamClient.GetByteArrayAsync(download);
-        var store = _downstream.Services.GetRequiredService<IStorageService>();
-        await store.DeleteAsync("packages/testdata/1.2.3/testdata.1.2.3.nupkg");
+        await DeletePublishedContentAsync("testdata.1.2.3.nupkg");
 
         // Database still lists the version, but its package bytes disappeared.
         var repaired = await _downstreamClient.GetByteArrayAsync(download);
@@ -91,8 +90,7 @@ public class MirrorIntegrationTests : IDisposable
         const string manifest = "v3/package/TestData/1.2.3/TestData.1.2.3.nuspec";
 
         var original = await _downstreamClient.GetByteArrayAsync(manifest);
-        var store = _downstream.Services.GetRequiredService<IStorageService>();
-        await store.DeleteAsync("packages/testdata/1.2.3/testdata.nuspec");
+        await DeletePublishedContentAsync("testdata.nuspec");
 
         var repaired = await _downstreamClient.GetByteArrayAsync(manifest);
         Assert.Equal(original, repaired);
@@ -104,8 +102,7 @@ public class MirrorIntegrationTests : IDisposable
         await _upstream.AddPackageAsync(_packageStream);
         using var localPackage = TestResources.GetResourceStream(TestResources.Package);
         await _downstream.AddPackageAsync(localPackage);
-        var store = _downstream.Services.GetRequiredService<IStorageService>();
-        await store.DeleteAsync("packages/testdata/1.2.3/testdata.1.2.3.nupkg");
+        await DeletePublishedContentAsync("testdata.1.2.3.nupkg");
 
         // The in-process test host propagates the missing local file exception.
         // Crucially it must not silently serve the upstream version.
@@ -216,6 +213,18 @@ public class MirrorIntegrationTests : IDisposable
   ""published"": ""2020-01-01T00:00:00Z"",
   ""registration"": ""http://localhost/v3/registration/testdata/index.json""
 }", json);
+    }
+
+    private async Task DeletePublishedContentAsync(string name)
+    {
+        using var scope = _downstream.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<IPackageDatabase>();
+        var version = NuGet.Versioning.NuGetVersion.Parse("1.2.3");
+        var entry = await db.FindOrNullAsync("TestData", version, true, default);
+        Assert.NotNull(entry);
+        Assert.NotNull(entry.StorageRevision);
+        var storage = scope.ServiceProvider.GetRequiredService<IStorageService>();
+        await storage.DeleteAsync($"packages/testdata/1.2.3/revisions/{entry.StorageRevision}/{name}");
     }
 
     public void Dispose()
