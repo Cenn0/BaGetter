@@ -45,6 +45,9 @@
     <PackageVersion Include="Microsoft.Azure.Storage.Blob" Version="11.2.3" />
     <PackageVersion Include="Google.Cloud.Storage.V1" Version="4.11.0" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.21" />
+    <!-- Pin fixed transitive native SQLite and PKCS dependencies found by NuGet audit. -->
+    <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.14" />
+    <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
     <PackageVersion Include="Tencent.QCloud.Cos.Sdk" Version="5.4.44" />
   </ItemGroup>
 </Project>
