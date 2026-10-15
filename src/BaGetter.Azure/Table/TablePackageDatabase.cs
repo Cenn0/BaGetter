@@ -70,7 +70,7 @@ namespace BaGetter.Azure
             {
                 try
                 {
-                    var result = await _table.GetEntityIfExistsAsync<PackageDownloadsEntity>(id, version.ToNormalizedString().ToLowerInvariant(), cancellationToken: cancellationToken);
+                    var result = await _table.GetEntityIfExistsAsync<PackageDownloadsEntity>(id.ToLowerInvariant(), version.ToNormalizedString().ToLowerInvariant(), cancellationToken: cancellationToken);
 
                     if (!result.HasValue)
                     {
@@ -166,7 +166,7 @@ namespace BaGetter.Azure
             bool includeUnlisted,
             CancellationToken cancellationToken)
         {
-            var result = await _table.GetEntityIfExistsAsync<PackageEntity>(id.ToLowerInvariant(), version.ToNormalizedString(), cancellationToken: cancellationToken);
+            var result = await _table.GetEntityIfExistsAsync<PackageEntity>(id.ToLowerInvariant(), version.ToNormalizedString().ToLowerInvariant(), cancellationToken: cancellationToken);
 
             if (!result.HasValue)
             {
@@ -186,13 +186,13 @@ namespace BaGetter.Azure
 
         public async Task<bool> HardDeletePackageAsync(string id, NuGetVersion version, CancellationToken cancellationToken)
         {
-            var result = await _table.DeleteEntityAsync(id, version.ToNormalizedString().ToLowerInvariant(), cancellationToken: cancellationToken);
+            var result = await _table.DeleteEntityAsync(id.ToLowerInvariant(), version.ToNormalizedString().ToLowerInvariant(), cancellationToken: cancellationToken);
             return !result.IsError;
         }
 
         public async Task<bool> RelistPackageAsync(string id, NuGetVersion version, CancellationToken cancellationToken)
         {
-            var result = await _table.GetEntityIfExistsAsync<PackageListingEntity>(id, version.ToNormalizedString().ToLowerInvariant(), cancellationToken: cancellationToken);
+            var result = await _table.GetEntityIfExistsAsync<PackageListingEntity>(id.ToLowerInvariant(), version.ToNormalizedString().ToLowerInvariant(), cancellationToken: cancellationToken);
 
             if (!result.HasValue)
             {
@@ -210,7 +210,7 @@ namespace BaGetter.Azure
 
         public async Task<bool> UnlistPackageAsync(string id, NuGetVersion version, CancellationToken cancellationToken)
         {
-            var result = await _table.GetEntityIfExistsAsync<PackageListingEntity>(id, version.ToNormalizedString().ToLowerInvariant(), cancellationToken: cancellationToken);
+            var result = await _table.GetEntityIfExistsAsync<PackageListingEntity>(id.ToLowerInvariant(), version.ToNormalizedString().ToLowerInvariant(), cancellationToken: cancellationToken);
 
             if (!result.HasValue)
             {
