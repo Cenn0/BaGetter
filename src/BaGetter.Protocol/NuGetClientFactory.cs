@@ -16,6 +16,9 @@ public partial class NuGetClientFactory
     private readonly HttpClient _httpClient;
     private readonly string _serviceIndexUrl;
 
+    /// <summary>The service index originally configured for this upstream.</summary>
+    public string ServiceIndexUrl => _serviceIndexUrl;
+
     private readonly SemaphoreSlim _mutex;
     private NuGetClients _clients;
 
