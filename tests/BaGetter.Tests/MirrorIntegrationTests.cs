@@ -107,9 +107,10 @@ public class MirrorIntegrationTests : IDisposable
         var store = _downstream.Services.GetRequiredService<IStorageService>();
         await store.DeleteAsync("packages/testdata/1.2.3/testdata.1.2.3.nupkg");
 
-        using var response = await _downstreamClient.GetAsync(
-            "v3/package/TestData/1.2.3/TestData.1.2.3.nupkg");
-        Assert.NotEqual(HttpStatusCode.OK, response.StatusCode);
+        // The in-process test host propagates the missing local file exception.
+        // Crucially it must not silently serve the upstream version.
+        await Assert.ThrowsAsync<FileNotFoundException>(() => _downstreamClient.GetAsync(
+            "v3/package/TestData/1.2.3/TestData.1.2.3.nupkg"));
 
         // A locally published version is immutable, even if the upstream has
         // an identically named version. An administrator must restore its bytes.
