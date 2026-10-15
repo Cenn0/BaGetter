@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Net;
 using BaGetter.Core;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Configuration;
