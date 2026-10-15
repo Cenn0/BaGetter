@@ -71,11 +71,13 @@ public class Program
             })
             .ConfigureWebHostDefaults(web =>
             {
-                web.ConfigureKestrel(options =>
+                web.ConfigureKestrel((context, options) =>
                 {
-                    // Remove the upload limit from Kestrel. If needed, an upload limit can
-                    // be enforced by a reverse proxy server, like IIS.
-                    options.Limits.MaxRequestBodySize = null;
+                    // Limit raw-body uploads as well as multipart uploads. A reverse
+                    // proxy should enforce its own limit as defense in depth.
+                    var settings = context.Configuration.Get<BaGetterOptions>() ?? new BaGetterOptions();
+                    options.Limits.MaxRequestBodySize = ConfigureBaGetterServer.GetMaxRequestBodyBytes(
+                        settings.MaxPackageSizeGiB, settings.MaxRequestBodySizeMiB);
                 });
 
                 web.UseStartup<Startup>();
