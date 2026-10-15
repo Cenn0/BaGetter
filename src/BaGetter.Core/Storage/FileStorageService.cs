@@ -61,19 +61,43 @@ public class FileStorageService : IStorageService
         // Ensure that the path exists.
         Directory.CreateDirectory(Path.GetDirectoryName(path));
 
+        // Stage the entire payload next to its final path, on the same filesystem.
+        // A failed or cancelled write must never expose a partial package at its
+        // permanent path. File.Move below is an atomic rename on local filesystems.
+        var temporaryPath = Path.Combine(
+            Path.GetDirectoryName(path), $".bagetter-{Guid.NewGuid():N}.tmp");
+
         try
         {
-            using var fileStream = File.Open(path, FileMode.CreateNew);
-            await content.CopyToAsync(fileStream, DefaultCopyBufferSize, cancellationToken);
-            return StoragePutResult.Success;
+            await using (var fileStream = new FileStream(
+                temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None,
+                DefaultCopyBufferSize, FileOptions.Asynchronous))
+            {
+                await content.CopyToAsync(fileStream, DefaultCopyBufferSize, cancellationToken);
+                await fileStream.FlushAsync(cancellationToken);
+            }
+
+            try
+            {
+                // Do not overwrite an existing version: NuGet versions are immutable.
+                File.Move(temporaryPath, path);
+                return StoragePutResult.Success;
+            }
+            catch (IOException) when (File.Exists(path))
+            {
+                // Another writer may have won the race. Compare full content with
+                // the committed file, never with another writer's staging file.
+                using var targetStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+                content.Position = 0;
+                return content.Matches(targetStream)
+                    ? StoragePutResult.AlreadyExists
+                    : StoragePutResult.Conflict;
+            }
         }
-        catch (IOException) when (File.Exists(path))
+        finally
         {
-            using var targetStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-            content.Position = 0;
-            return content.Matches(targetStream)
-                ? StoragePutResult.AlreadyExists
-                : StoragePutResult.Conflict;
+            // Also covers cancellations and I/O errors during the staging copy.
+            File.Delete(temporaryPath);
         }
     }
 
