@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -37,10 +38,21 @@ public class PackageService : IPackageService
         string id,
         CancellationToken cancellationToken)
     {
-        var upstreamVersions = await _upstream.ListPackageVersionsAsync(id, cancellationToken);
+        // Query local data first so an upstream outage cannot break access to
+        // versions already cached by this server.
+        var localPackages = await _db.FindAsync(id, includeUnlisted: true, cancellationToken);
+        IReadOnlyList<NuGetVersion> upstreamVersions;
+        try
+        {
+            upstreamVersions = await _upstream.ListPackageVersionsAsync(id, cancellationToken);
+        }
+        catch (UpstreamUnavailableException) when (localPackages.Count > 0)
+        {
+            _logger.LogWarning("Serving cached versions of {PackageId} because upstream is unavailable", id);
+            return localPackages.Select(p => p.Version).ToList();
+        }
 
         // Merge the local package versions into the upstream package versions.
-        var localPackages = await _db.FindAsync(id, includeUnlisted: true, cancellationToken);
         var localVersions = localPackages.Select(p => p.Version);
 
         if (!upstreamVersions.Any()) return localVersions.ToList();
@@ -51,8 +63,17 @@ public class PackageService : IPackageService
 
     public async Task<IReadOnlyList<Package>> FindPackagesAsync(string id, CancellationToken cancellationToken)
     {
-        var upstreamPackages = await _upstream.ListPackagesAsync(id, cancellationToken);
         var localPackages = await _db.FindAsync(id, includeUnlisted: true, cancellationToken);
+        IReadOnlyList<Package> upstreamPackages;
+        try
+        {
+            upstreamPackages = await _upstream.ListPackagesAsync(id, cancellationToken);
+        }
+        catch (UpstreamUnavailableException) when (localPackages.Count > 0)
+        {
+            _logger.LogWarning("Serving cached metadata for {PackageId} because upstream is unavailable", id);
+            return localPackages;
+        }
 
         if (!upstreamPackages.Any()) return localPackages;
         if (!localPackages.Any()) return upstreamPackages;
@@ -163,9 +184,22 @@ public class PackageService : IPackageService
                 version,
                 result);
 
-            return result == PackageIndexingResult.Success ||
-                (result == PackageIndexingResult.PackageAlreadyExists &&
-                 await _db.ExistsAsync(id, version, cancellationToken));
+            if (result == PackageIndexingResult.Success)
+            {
+                return true;
+            }
+
+            if (result == PackageIndexingResult.PackageAlreadyExists &&
+                await _db.ExistsAsync(id, version, cancellationToken))
+            {
+                return true;
+            }
+
+            // A corrupted/invalid upstream artifact must not be advertised
+            // as a normal missing version, and must never poison the cache.
+            throw new UpstreamUnavailableException(
+                $"Upstream package {id} {version} could not be indexed ({result})",
+                new InvalidDataException($"Package indexing result: {result}"));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -179,8 +213,15 @@ public class PackageService : IPackageService
                 id,
                 version);
 
-            // Another server process may have completed the same index concurrently.
-            return await _db.ExistsAsync(id, version, cancellationToken);
+            // Another replica may have indexed the package while this failed.
+            if (await _db.ExistsAsync(id, version, cancellationToken))
+            {
+                return true;
+            }
+
+            // An upstream or storage error is not a confirmed package miss.
+            throw new UpstreamUnavailableException(
+                $"Unable to fetch or index {id} {version} from upstream", e);
         }
     }
 }

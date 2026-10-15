@@ -316,7 +316,7 @@ public class PackageServiceTests
                 .Setup(u => u.DownloadPackageOrNullAsync(_id, _version, _cancellationToken))
                 .ThrowsAsync(new InvalidOperationException("Hello world"));
 
-            await TargetAsync();
+            await Assert.ThrowsAsync<UpstreamUnavailableException>(() => TargetAsync());
 
             _indexer.Verify(
                 i => i.IndexAsync(It.IsAny<Stream>(), _upstream.Object.GetServiceIndexUrl(), _cancellationToken),
@@ -334,6 +334,9 @@ public class PackageServiceTests
             _upstream
                 .Setup(u => u.DownloadPackageOrNullAsync(_id, _version, _cancellationToken))
                 .ReturnsAsync(downloadStream);
+            _indexer
+                .Setup(i => i.IndexAsync(It.IsAny<Stream>(), It.IsAny<string>(), _cancellationToken))
+                .ReturnsAsync(PackageIndexingResult.Success);
 
             await TargetAsync();
 

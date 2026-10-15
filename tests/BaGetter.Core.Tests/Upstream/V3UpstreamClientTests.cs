@@ -52,7 +52,7 @@ public class V3UpstreamClientTests
         }
 
         [Fact]
-        public async Task IgnoresExceptions()
+        public async Task PropagatesTransientFailures()
         {
             _client
                 .Setup(c => c.ListPackageVersionsAsync(
@@ -61,9 +61,8 @@ public class V3UpstreamClientTests
                     _cancellation))
                 .ThrowsAsync(new InvalidDataException("Hello"));
 
-            var result = await _target.ListPackageVersionsAsync(_id, _cancellation);
-
-            Assert.Empty(result);
+            await Assert.ThrowsAsync<UpstreamUnavailableException>(() =>
+                _target.ListPackageVersionsAsync(_id, _cancellation));
         }
 
         [Fact]
@@ -98,15 +97,14 @@ public class V3UpstreamClientTests
         }
 
         [Fact]
-        public async Task IgnoresExceptions()
+        public async Task PropagatesTransientFailures()
         {
             _client
                 .Setup(c => c.GetPackageMetadataAsync(_id, _cancellation))
                 .ThrowsAsync(new InvalidDataException("Hello world"));
 
-            var result = await _target.ListPackagesAsync(_id, _cancellation);
-
-            Assert.Empty(result);
+            await Assert.ThrowsAsync<UpstreamUnavailableException>(() =>
+                _target.ListPackagesAsync(_id, _cancellation));
         }
 
         [Fact]
@@ -210,15 +208,14 @@ public class V3UpstreamClientTests
         }
 
         [Fact]
-        public async Task IgnoresExceptions()
+        public async Task PropagatesTransientFailures()
         {
             _client
                 .Setup(c => c.DownloadPackageAsync(_id, _version, _cancellation))
                 .ThrowsAsync(new InvalidDataException("Hello world"));
 
-            var result = await _target.DownloadPackageOrNullAsync(_id, _version, _cancellation);
-
-            Assert.Null(result);
+            await Assert.ThrowsAsync<UpstreamUnavailableException>(() =>
+                _target.DownloadPackageOrNullAsync(_id, _version, _cancellation));
         }
 
         [Fact]
