@@ -48,6 +48,10 @@ public class Startup
         services.AddTransient(DependencyInjectionExtensions.GetServiceFromProviders<ISearchService>);
         services.AddTransient(DependencyInjectionExtensions.GetServiceFromProviders<ISearchIndexer>);
 
+        // Periodically remove old, unreferenced immutable filesystem revisions.
+        // Storage-only leftovers are safe but otherwise consume disk indefinitely.
+        services.AddHostedService<PackageRevisionGarbageCollector>();
+
         services.AddHealthChecks();
 
         services.AddCors();
