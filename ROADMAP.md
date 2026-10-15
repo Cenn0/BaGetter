@@ -43,6 +43,8 @@ The 385 existing tests per operating system do **not** establish offline-cache c
 
 G0 and G1 should be pursued in parallel, but neither should be declared complete merely because an upstream PR claims successful tests. Microsoft's [.NET support policy](https://learn.microsoft.com/en-us/dotnet/core/releases-and-support) lists .NET 9 support ending in November 2026; this makes G0 time-sensitive.
 
+**Implementation update (2026-10-15):** The independent real-nuget.org smoke workflow under `.github/workflows/mirror-smoke.yml` tests cold, warm and simulated offline restores with a separate NuGet client cache, transitive packages and nupkg byte identity. Its initial result must pass before this acceptance item is closed.
+
 ## G1: nuget.org mirror — detailed work plan and mandatory acceptance
 
 ### M1.1 — Reproducible end-to-end verification (first task)
