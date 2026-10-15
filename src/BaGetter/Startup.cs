@@ -101,6 +101,7 @@ public class Startup
         app.UseAuthentication();
         app.UseAuthorization();
 
+        app.UseMiddleware<UpstreamUnavailableMiddleware>();
         app.UseOperationCancelledMiddleware();
 
         app.UseEndpoints(endpoints =>

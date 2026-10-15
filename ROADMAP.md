@@ -16,7 +16,9 @@ Two operational modes must remain distinct:
 1. **Read-through mirror (required first):** on first request, download a particular package from nuget.org, validate it, cache it, and serve repeat requests locally. The existing fork supports this in principle, but it has not yet passed a real nuget.org end-to-end qualification.
 2. **Full proxy (optional, later):** also proxy upstream search/autocomplete, relevant metadata, and permitted assets. In strict-proxy mode clients should only need BaGetter for core NuGet protocol requests. No upstream URI may leak into BaGetter's service-index resource URLs in that mode; unrelated third-party links contained in package metadata are not automatically safe or supported for proxying.
 
-The immediate release blocker is **mirror correctness**, **not a new user interface**. Prefer incremental, independently testable changes over cherry-picking very large, mutually overlapping PRs.
+The immediate release blocker is **mirror correctness**, **not a new user interface**.
+
+**Implementation log (2026-10-15):** Initial G1 work adds HTTP upstream-error classification and an explicit 503 response path instead of silently converting all failed upstream package downloads into HTTP 404. This change requires dedicated CI qualification and does not complete G1. Prefer incremental, independently testable changes over cherry-picking very large, mutually overlapping PRs.
 
 ### Existing fork baseline — do not reimplement blindly
 
