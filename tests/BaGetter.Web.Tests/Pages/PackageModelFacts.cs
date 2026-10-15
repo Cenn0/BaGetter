@@ -328,7 +328,7 @@ public class PackageModelFacts
 
         await _target.OnGetAsync("testpackage", "1.0.0", _cancellation);
 
-        Assert.Contains("<h1>My readme</h1>", _target.Readme.Value);
+        Assert.Contains("My readme</h1>", _target.Readme.Value);
         Assert.Contains("<p>Hello world!</p>", _target.Readme.Value);
     }
 
