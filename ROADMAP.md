@@ -70,6 +70,16 @@ G0 and G1 should be pursued in parallel, but neither should be declared complete
 
 **Exit:** Fault-injection tests prove that partial state is neither presented as valid nor permanently poisons future requests; reconciliation restores known-good cached packages without modifying locally pushed packages.
 
+**Implementation update — PR #20 (2026-10-15):** Immutable per-package storage revisions
+are written before the database metadata pointer is published. SQL replacements
+use a database transaction; Azure Table uses a single-entity replacement.
+Existing files remain readable during failed overwrites. SQLite rollback and
+filesystem cleanup are covered by automated tests; the existing mirror
+repair path is revision-aware, including nuspec, README and icon.
+This is an **atomic publication protocol**, not a cross-system ACID transaction.
+Filesystem orphan collection is explicit opt-in, and other object stores still
+require provider-specific orphan reconciliation. A certified multi-replica
+deployment and a power-loss/durability exercise remain open gates.
 ### M1.3 — Concurrency, retention and multi-instance behavior
 
 - Keep the existing process-wide per-package coordination from fork PR #2, but test it using a **real HTTP mirror and a local fake nuget.org**, not only mocked service methods.
