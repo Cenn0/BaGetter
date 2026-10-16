@@ -108,7 +108,7 @@ database, storage, package_id, package_version = sys.argv[1:]
 with sqlite3.connect(database, timeout=10) as conn:
     row = conn.execute(
         "SELECT StorageRevision FROM Packages WHERE Id = ? COLLATE NOCASE "
-        "AND NormalizedVersionString = ? COLLATE NOCASE",
+        "AND Version = ? COLLATE NOCASE",
         (package_id, package_version),
     ).fetchone()
 
