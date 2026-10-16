@@ -5,6 +5,8 @@
 [![CI](https://github.com/Cenn0/BaGetter/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/Cenn0/BaGetter/actions/workflows/main.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+**Explore:** [Quick start](#quick-start) · [Capabilities](#capabilities) · [Mirror guide](docs/MIRROR.md) · [Documentation](docs/INDEX.md) · [Roadmap](ROADMAP.md)
+
 A self-hosted **NuGet V3 package and symbol server** built with C# and ASP.NET Core. This is a community-maintained fork of [BaGetter](https://github.com/bagetter/BaGetter), originally based on [BaGet](https://github.com/loic-sharma/BaGet).
 
 > **Project status:** This fork is under development. Build images and releases from the upstream project do **not** include fork-specific changes. The optional nuget.org mirror has passed selected live smoke tests, but full NuGet protocol compatibility, multi-instance operation and production readiness have not been established.
@@ -51,6 +53,18 @@ Mirror__PackageSource=https://api.nuget.org/v3/index.json
 
 The mirror can cache requested package content; it is **not** a fully transparent NuGet V3 reverse proxy. Search, autocomplete, offline metadata resolution and multi-replica correctness require separate validation. See [mirror behavior and live-test evidence](docs/MIRROR.md).
 
+## Architecture at a glance
+
+```mermaid
+flowchart LR
+  N[NuGet clients] --> B[BaGetter ASP.NET Core]
+  B --> D[(Configured package database)]
+  B --> S[(Package and symbol storage)]
+  B -.->|Optional read-through| U[nuget.org]
+```
+
+The mirror is opt-in and does **not** imply a complete upstream search or metadata proxy. See [operations and backups](docs/OPERATIONS.md).
+
 ## Development
 
 ```bash
@@ -71,6 +85,10 @@ Default local settings are **not** a production security baseline. In particular
 - [Contributing](CONTRIBUTING.md)
 
 Report security-sensitive issues privately where feasible; do not post tokens or deployment secrets in public issues.
+
+## More documentation
+
+[Documentation index](docs/INDEX.md) · [Mirror](docs/MIRROR.md) · [Operations](docs/OPERATIONS.md) · [Security](SECURITY.md) · [Roadmap](ROADMAP.md) · [Contributing](CONTRIBUTING.md)
 
 ## License
 
