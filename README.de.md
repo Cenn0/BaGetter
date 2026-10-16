@@ -5,6 +5,8 @@
 [![CI](https://github.com/Cenn0/BaGetter/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/Cenn0/BaGetter/actions/workflows/main.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+**Direkt zu:** [Schnellstart](#schnellstart) · [Funktionsumfang](#funktionsumfang) · [Mirror-Anleitung](docs/MIRROR.md) · [Dokumentation](docs/INDEX.md) · [Roadmap](ROADMAP.md)
+
 Ein selbst gehosteter **NuGet-V3-Paket- und Symbolserver** auf Basis von C# und ASP.NET Core. Dieses Repository ist ein eigenständig gepflegter Fork von [BaGetter](https://github.com/bagetter/BaGetter), das ursprünglich aus [BaGet](https://github.com/loic-sharma/BaGet) hervorgegangen ist.
 
 > **Projektstatus:** Dieser Fork wird weiterentwickelt. Images und Releases des Upstream-Projekts enthalten **nicht** automatisch die Änderungen dieses Forks. Der optionale Mirror zu nuget.org hat ausgewählte Live-Smoke-Tests bestanden; eine vollständige NuGet-Protokollkompatibilität, Mehrinstanzfähigkeit und Produktionsfreigabe sind damit nicht nachgewiesen.
@@ -51,6 +53,18 @@ Mirror__PackageSource=https://api.nuget.org/v3/index.json
 
 Der Mirror kann angeforderte Paketdaten zwischenspeichern, ist aber **kein vollständig transparenter NuGet-V3-Reverse-Proxy**. Suche, Autovervollständigung, Offline-Metadatenauflösung und Konsistenz über mehrere Instanzen benötigen eigene Prüfungen. Siehe [Mirror-Verhalten und Live-Testnachweise](docs/MIRROR.md).
 
+## Architektur im Überblick
+
+```mermaid
+flowchart LR
+  N[NuGet-Clients] --> B[BaGetter ASP.NET Core]
+  B --> D[(Konfigurierte Paketdatenbank)]
+  B --> S[(Paket- und Symbolspeicher)]
+  B -.->|Optionaler Read-through| U[nuget.org]
+```
+
+Der Mirror ist optional und **kein vollständiger Such- oder Metadatenproxy**. Siehe [Betrieb und Backups](docs/OPERATIONS.md).
+
 ## Entwicklung
 
 ```bash
@@ -71,6 +85,10 @@ Die lokalen Standardwerte sind **keine sichere Produktionskonfiguration**. Insbe
 - [Mitwirken](CONTRIBUTING.md)
 
 Sicherheitsrelevante Meldungen möglichst vertraulich einreichen. Zugangsdaten oder interne Konfiguration gehören nicht in öffentliche Issues.
+
+## Weitere Dokumentation
+
+[Dokumentationsindex](docs/INDEX.md) · [Mirror](docs/MIRROR.md) · [Betrieb](docs/OPERATIONS.md) · [Sicherheit](SECURITY.md) · [Roadmap](ROADMAP.md) · [Mitwirken](CONTRIBUTING.md)
 
 ## Lizenz
 
