@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BaGetter.Core.Tests.Support;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NuGet.Versioning;
@@ -33,7 +34,7 @@ public class ConcurrentMirrorTests
             {
                 Interlocked.Increment(ref downloads);
                 await Task.Delay(25);
-                return (Stream)new MemoryStream([1, 2, 3]);
+                return (Stream)MirrorTestPackages.Create(PackageId, Version.ToNormalizedString());
             });
         indexer.Setup(i => i.IndexAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(async () =>
@@ -70,7 +71,7 @@ public class ConcurrentMirrorTests
         upstream.Setup(u => u.GetServiceIndexUrl())
             .Returns("https://example.org/v3/index.json");
         upstream.Setup(u => u.DownloadPackageOrNullAsync(PackageId, Version, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new MemoryStream([1, 2, 3]) as Stream);
+            .ReturnsAsync(MirrorTestPackages.Create(PackageId, Version.ToNormalizedString()) as Stream);
         indexer.Setup(i => i.IndexAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(PackageIndexingResult.PackageAlreadyExists);
 
