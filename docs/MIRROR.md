@@ -30,6 +30,34 @@ Do not publish the example hostname as a working URL; it is illustrative only.
 
 A cached **package file** alone does not guarantee that all version, registration or search metadata can be resolved offline. NuGet client caches must be cleared in acceptance tests to ensure the server cache is actually exercised.
 
+## Verified real-nuget.org acceptance (2026-10-16)
+
+The live Ubuntu GitHub Actions [mirror smoke run](https://github.com/Cenn0/BaGetter/actions/runs/38869944491)
+passed with .NET 10 against the **actual** nuget.org V3 service index.
+It exercised the following using an isolated SQLite database, revisioned
+filesystem storage and a NuGet client configured with BaGetter as its only source:
+
+- Cold restore of pinned `Microsoft.Extensions.Logging` 9.0.10 and its
+  transitive dependencies (six cached package archives); warm restore with
+  the client cache cleared; server restart and restore with an unreachable
+  upstream.
+- Byte-for-byte identity with packages downloaded independently from
+  nuget.org's service-index-discovered flat-container endpoint.
+- Thirty-two parallel first-time package downloads with a single origin
+  fetch, identical response bodies and consistent committed package bytes.
+- GET and HEAD of cached packages, actual origin not-found (404), unavailable
+  upstream for uncached content (503), and repair of a deleted cached archive
+  by publishing a new immutable storage revision.
+
+The acceptance script reads `StorageRevision` from the **committed database
+row**, not from a fixed legacy file path or an orphan directory. The result
+is a **single-run smoke-test pass**, not a certification of the entire NuGet
+V3 proxy protocol. Live nuget.org behavior, Windows clients, Visual Studio
+search, multi-replica coordination, cloud storage backends, throttling/429,
+upstream TLS errors and extended soak/load tests still need qualification.
+Check the latest [CI runs](https://github.com/Cenn0/BaGetter/actions)
+before relying on this baseline for a new commit.
+
 ## Minimal manual verification
 
 1. Enable mirror mode against the real `https://api.nuget.org/v3/index.json` service index in an isolated test deployment.

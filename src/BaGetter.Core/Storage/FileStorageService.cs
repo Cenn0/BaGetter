@@ -16,6 +16,13 @@ public class FileStorageService : IStorageService
     // See: https://github.com/dotnet/corefx/blob/master/src/Common/src/CoreLib/System/IO/Stream.cs#L35
     private const int DefaultCopyBufferSize = 81920;
 
+    // File.Move(destination, overwrite: false) does not make the preceding
+    // existence check atomic with another writer on every platform. Serialize
+    // publication per path across instances of this service in one process.
+    // This is NOT a distributed lock across BaGetter replicas.
+    private static readonly SemaphoreSlim[] PublicationGates = Enumerable.Range(0, 256)
+        .Select(_ => new SemaphoreSlim(1, 1)).ToArray();
+
     private readonly string _storePath;
 
     public FileStorageService(IOptionsSnapshot<FileSystemStorageOptions> options)
@@ -79,21 +86,33 @@ public class FileStorageService : IStorageService
                 await fileStream.FlushAsync(cancellationToken);
             }
 
+            var gateIndex = (StringComparer.OrdinalIgnoreCase.GetHashCode(path) & int.MaxValue) %
+                            PublicationGates.Length;
+            var gate = PublicationGates[gateIndex];
+            await gate.WaitAsync(cancellationToken);
             try
             {
-                // Do not overwrite an existing version: NuGet versions are immutable.
-                File.Move(temporaryPath, path);
-                return StoragePutResult.Success;
+                if (File.Exists(path))
+                {
+                    return CompareExistingFile(path, content);
+                }
+
+                try
+                {
+                    // Rename the completed staging file. A concurrent in-process
+                    // writer cannot pass the existence check while we publish.
+                    File.Move(temporaryPath, path);
+                    return StoragePutResult.Success;
+                }
+                catch (IOException) when (File.Exists(path))
+                {
+                    // A different process may have published first.
+                    return CompareExistingFile(path, content);
+                }
             }
-            catch (IOException) when (File.Exists(path))
+            finally
             {
-                // Another writer may have won the race. Compare full content with
-                // the committed file, never with another writer's staging file.
-                using var targetStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-                content.Position = 0;
-                return content.Matches(targetStream)
-                    ? StoragePutResult.AlreadyExists
-                    : StoragePutResult.Conflict;
+                gate.Release();
             }
         }
         finally
@@ -101,6 +120,17 @@ public class FileStorageService : IStorageService
             // Also covers cancellations and I/O errors during the staging copy.
             File.Delete(temporaryPath);
         }
+    }
+
+    private static StoragePutResult CompareExistingFile(string path, Stream content)
+    {
+        // Compare only after a complete file is published; never overwrite the
+        // winner, even when simultaneous inputs disagree.
+        using var targetStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        content.Position = 0;
+        return content.Matches(targetStream)
+            ? StoragePutResult.AlreadyExists
+            : StoragePutResult.Conflict;
     }
 
     public Task DeleteAsync(string path, CancellationToken cancellationToken = default)

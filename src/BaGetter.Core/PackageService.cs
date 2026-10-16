@@ -274,6 +274,20 @@ public class PackageService : IPackageService
                 return false;
             }
 
+            // Never publish a package under an unrelated ID or version. An
+            // unexpected upstream response must not contaminate this feed.
+            // The indexer subsequently validates the complete archive.
+            using (var reader = new PackageArchiveReader(packageStream, leaveStreamOpen: true))
+            {
+                if (!string.Equals(reader.NuspecReader.GetId(), id, StringComparison.OrdinalIgnoreCase) ||
+                    reader.NuspecReader.GetVersion() != version)
+                {
+                    throw new InvalidDataException(
+                        $"Upstream returned a different package ID or version for {id} {version}");
+                }
+            }
+
+            packageStream.Position = 0;
             _logger.LogInformation(
                 "Downloaded package {PackageId} {PackageVersion}, indexing...",
                 id,

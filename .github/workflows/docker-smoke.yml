@@ -5,6 +5,11 @@ on:
     branches: [main]
     paths:
       - "Dockerfile"
+      - ".dockerignore"
+      - "BaGetter.sln"
+      - "Directory.Packages.props"
+      - "global.json"
+      - "src/**"
       - ".github/workflows/release.yml"
       - ".github/workflows/docker-smoke.yml"
       - "scripts/smoke/docker-startup.sh"
