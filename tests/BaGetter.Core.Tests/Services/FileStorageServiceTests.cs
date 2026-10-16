@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -149,6 +150,35 @@ public class FileStorageServiceTests
             Assert.Contains(StoragePutResult.AlreadyExists, results);
             Assert.Equal("Hello world", await File.ReadAllTextAsync(Path.Combine(_storePath, "same.nupkg")));
             Assert.Empty(Directory.GetFiles(_storePath, "*.tmp", SearchOption.AllDirectories));
+        }
+
+        [Fact]
+        public async Task ConcurrentDifferentPutsNeverOverwriteTheWinner()
+        {
+            const int writers = 32;
+            var streams = new Stream[writers];
+            try
+            {
+                for (var i = 0; i < writers; i++)
+                    streams[i] = StringStream($"Distinct package bytes {i}");
+
+                var tasks = new Task<StoragePutResult>[writers];
+                for (var i = 0; i < writers; i++)
+                    tasks[i] = _target.PutAsync("immutable.nupkg", streams[i], "application/octet-stream");
+                var results = await Task.WhenAll(tasks);
+
+                Assert.Equal(1, results.Count(r => r == StoragePutResult.Success));
+                Assert.Equal(writers - 1, results.Count(r => r == StoragePutResult.Conflict));
+                var winningIndex = Array.IndexOf(results, StoragePutResult.Success);
+                Assert.Equal($"Distinct package bytes {winningIndex}",
+                    await File.ReadAllTextAsync(Path.Combine(_storePath, "immutable.nupkg")));
+                Assert.Empty(Directory.GetFiles(_storePath, "*.tmp", SearchOption.AllDirectories));
+            }
+            finally
+            {
+                foreach (var stream in streams)
+                    stream?.Dispose();
+            }
         }
 
         private sealed class InterruptingStream : MemoryStream
