@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BaGetter.Core.Tests.Support;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NuGet.Versioning;
@@ -323,6 +324,25 @@ public class PackageServiceTests
                 Times.Never);
         }
 
+        [Theory]
+        [InlineData("Some.Other.Package", "1.0.0")]
+        [InlineData("MyPackage", "2.0.0")]
+        public async Task RejectsUnexpectedUpstreamPackageIdentity(string upstreamId, string upstreamVersion)
+        {
+            _db.Setup(p => p.ExistsAsync(_id, _version, _cancellationToken))
+                .ReturnsAsync(false);
+            using var downloadStream = MirrorTestPackages.Create(upstreamId, upstreamVersion);
+            _upstream
+                .Setup(u => u.DownloadPackageOrNullAsync(_id, _version, _cancellationToken))
+                .ReturnsAsync(downloadStream);
+
+            await Assert.ThrowsAsync<UpstreamUnavailableException>(() => TargetAsync());
+
+            _indexer.Verify(
+                i => i.IndexAsync(It.IsAny<Stream>(), It.IsAny<string>(), _cancellationToken),
+                Times.Never);
+        }
+
         [Fact]
         public async Task MirrorsPackage()
         {
@@ -330,7 +350,7 @@ public class PackageServiceTests
                 .Setup(p => p.ExistsAsync(_id, _version, _cancellationToken))
                 .ReturnsAsync(false);
 
-            using var downloadStream = new MemoryStream();
+            using var downloadStream = MirrorTestPackages.Create(_id, _version.ToNormalizedString());
             _upstream
                 .Setup(u => u.DownloadPackageOrNullAsync(_id, _version, _cancellationToken))
                 .ReturnsAsync(downloadStream);
