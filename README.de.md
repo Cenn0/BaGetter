@@ -1,13 +1,15 @@
-# BaGetter — Cenn0-Fork
+# BaGetter (Community-Fork)
 
 **Sprache:** [English](readme.md) · **Deutsch**
 
 [![CI](https://github.com/Cenn0/BaGetter/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/Cenn0/BaGetter/actions/workflows/main.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+**Navigation:** [Schnellstart](#schnellstart) · [Funktionsumfang](#funktionsumfang) · [Architektur](#architektur) · [Entwicklung](#entwicklung) · [Betrieb](docs/OPERATIONS.md) · [Roadmap](ROADMAP.md)
+
 Ein selbst gehosteter **NuGet-V3-Paket- und Symbolserver** auf Basis von C# und ASP.NET Core. Dieses Repository ist ein eigenständig gepflegter Fork von [BaGetter](https://github.com/bagetter/BaGetter), das ursprünglich aus [BaGet](https://github.com/loic-sharma/BaGet) hervorgegangen ist.
 
-> **Projektstatus:** Dieser Fork wird weiterentwickelt. Images und Releases des Upstream-Projekts enthalten **nicht** automatisch die Änderungen dieses Forks. Der optionale Mirror zu nuget.org hat ausgewählte Live-Smoke-Tests bestanden; eine vollständige NuGet-Protokollkompatibilität, Mehrinstanzfähigkeit und Produktionsfreigabe sind damit nicht nachgewiesen.
+> **Projektstatus:** Dieser Fork wird weiterentwickelt. Images und Releases des Upstream-Projekts enthalten **nicht** automatisch die Änderungen dieses Forks. Der optionale Mirror zu nuget.org hat ausgewählte Live-Smoke-Tests bestanden; eine vollständige NuGet-Protokollkompatibilität und sichere parallele Schreibzugriffe mehrerer Instanzen sind damit nicht nachgewiesen.
 
 ## Schnellstart
 
@@ -33,7 +35,7 @@ docker run --rm --name bagetter -p 127.0.0.1:5000:8080 \
   -v bagetter-data:/data bagetter-local:dev
 ```
 
-Das Volume `/data` enthält Pakete, Symbole und SQLite-Daten. Der Port ist absichtlich nur an Loopback gebunden. Diese Befehle dienen der **lokalen Erprobung**, nicht dem Produktionsbetrieb.
+Das Volume `/data` enthält Pakete, Symbole und SQLite-Daten. Der Port ist absichtlich nur an Loopback gebunden. Die Befehle dienen der **lokalen Erprobung**; vor einer Netzwerkbereitstellung sind TLS, Zugriffsschutz und Persistenz zu prüfen.
 
 ## Funktionsumfang
 
@@ -51,6 +53,21 @@ Mirror__PackageSource=https://api.nuget.org/v3/index.json
 
 Der Mirror kann angeforderte Paketdaten zwischenspeichern, ist aber **kein vollständig transparenter NuGet-V3-Reverse-Proxy**. Suche, Autovervollständigung, Offline-Metadatenauflösung und Konsistenz über mehrere Instanzen benötigen eigene Prüfungen. Siehe [Mirror-Verhalten und Live-Testnachweise](docs/MIRROR.md).
 
+## Architektur
+
+Ein **ASP.NET-Core-Dienst** verarbeitet NuGet-V3- und Symbolanfragen. Metadaten und Paketdateien liegen in getrennten Speichersystemen.
+
+```mermaid
+flowchart LR
+  C["NuGet-Clients und Symbolabfragen"] --> W["ASP.NET-Core-Endpunkte"]
+  W --> S["NuGet-, Paket- und Mirror-Dienste"]
+  S --> D[("Metadaten: konfigurierbare Datenbank")]
+  S --> B[("Pakete und Symbole: konfigurierbarer Speicher")]
+  S -. "Optionale HTTPS-Cache-Misses" .-> U["nuget.org V3"]
+```
+
+Paketinhalte werden in unveränderlichen Revisionen abgelegt, bevor der Metadatenzeiger sichtbar wird. Das ist **keine verteilte Transaktion** über Datenbank und Dateispeicher. Die Koordinierung beschränkt sich auf eine Instanz; Details stehen in [Betrieb](docs/OPERATIONS.md) und [Mirror-Testnachweisen](docs/MIRROR.md).
+
 ## Entwicklung
 
 ```bash
@@ -63,11 +80,11 @@ Die [GitHub-Actions-Läufe](https://github.com/Cenn0/BaGetter/actions) umfassen 
 
 ## Sicherheit und Betrieb
 
-Die lokalen Standardwerte sind **keine sichere Produktionskonfiguration**. Insbesondere garantiert ein leerer `ApiKey` keine zuverlässig gesperrte Veröffentlichung von Paketen. Vor einer Freigabe im Netzwerk müssen Authentifizierung und Schreibberechtigungen überprüft, HTTPS am vertrauenswürdigen Proxy terminiert, Netzbereiche und Ressourcen begrenzt sowie die Wiederherstellung von **Datenbank und Paketspeicher gemeinsam** getestet werden. Eine verteilte Datenbank-/Dateispeichertransaktion ist nicht garantiert.
+Die lokalen Standardwerte sind **nicht für eine ungeschützte Netzwerkbereitstellung geeignet**. Insbesondere garantiert ein leerer `ApiKey` keine zuverlässig gesperrte Veröffentlichung von Paketen. Vor der Bereitstellung im Netzwerk müssen Authentifizierung und Schreibberechtigungen überprüft, HTTPS am vertrauenswürdigen Proxy terminiert, Netzbereiche und Ressourcen begrenzt sowie die Wiederherstellung von **Datenbank und Paketspeicher gemeinsam** getestet werden. Eine verteilte Datenbank-/Dateispeichertransaktion ist nicht garantiert.
 
 - [Installation, Konfiguration, Backups und Wiederherstellung](docs/OPERATIONS.md)
 - [Mirror-Einrichtung und Einschränkungen](docs/MIRROR.md)
-- [Roadmap und Freigabekriterien](ROADMAP.md)
+- [Roadmap und offene Aufgaben](ROADMAP.md)
 - [Mitwirken](CONTRIBUTING.md)
 
 Sicherheitsrelevante Meldungen möglichst vertraulich einreichen. Zugangsdaten oder interne Konfiguration gehören nicht in öffentliche Issues.

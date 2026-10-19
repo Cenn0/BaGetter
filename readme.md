@@ -1,13 +1,15 @@
-# BaGetter — Cenn0 fork
+# BaGetter (community fork)
 
 **Language:** **English** · [Deutsch](README.de.md)
 
 [![CI](https://github.com/Cenn0/BaGetter/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/Cenn0/BaGetter/actions/workflows/main.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+**Navigate:** [Quick start](#quick-start) · [Capabilities](#capabilities) · [Architecture](#architecture) · [Development](#development) · [Operations](docs/OPERATIONS.md) · [Roadmap](ROADMAP.md) · [Contributing](CONTRIBUTING.md)
+
 A self-hosted **NuGet V3 package and symbol server** built with C# and ASP.NET Core. This is a community-maintained fork of [BaGetter](https://github.com/bagetter/BaGetter), originally based on [BaGet](https://github.com/loic-sharma/BaGet).
 
-> **Project status:** This fork is under development. Build images and releases from the upstream project do **not** include fork-specific changes. The optional nuget.org mirror has passed selected live smoke tests, but full NuGet protocol compatibility, multi-instance operation and production readiness have not been established.
+> **Project status:** This fork is under development. Build images and releases from the upstream project do **not** include fork-specific changes. The optional nuget.org mirror has passed selected live smoke tests, but full NuGet protocol compatibility and safe concurrent multi-instance writes have not been established. Evaluate the documented limitations for each deployment.
 
 ## Quick start
 
@@ -33,7 +35,7 @@ docker run --rm --name bagetter -p 127.0.0.1:5000:8080 \
   -v bagetter-data:/data bagetter-local:dev
 ```
 
-The `/data` volume stores packages, symbols and SQLite data. The host port is intentionally bound to loopback; these commands are for **local evaluation**, not a production deployment.
+The `/data` volume stores packages, symbols and SQLite data. The host port is intentionally bound to loopback; review TLS, access control, and data persistence before enabling network access.
 
 ## Capabilities
 
@@ -51,6 +53,21 @@ Mirror__PackageSource=https://api.nuget.org/v3/index.json
 
 The mirror can cache requested package content; it is **not** a fully transparent NuGet V3 reverse proxy. Search, autocomplete, offline metadata resolution and multi-replica correctness require separate validation. See [mirror behavior and live-test evidence](docs/MIRROR.md).
 
+## Architecture
+
+The fork is an **ASP.NET Core application** with NuGet V3 and symbol endpoints. Package metadata and package bytes use distinct persistence boundaries.
+
+```mermaid
+flowchart LR
+  Client["NuGet clients and symbol consumers"] --> Web["ASP.NET Core endpoints"]
+  Web --> Service["NuGet protocol, package and mirror services"]
+  Service --> Db[("Package metadata: configured database")]
+  Service --> Store[("Packages and symbols: configured storage")]
+  Service -. "Optional HTTPS cache misses" .-> Origin["nuget.org V3 upstream"]
+```
+
+**Write and recovery boundary:** package files are staged in immutable storage revisions before a metadata pointer is committed. This reduces partial-file exposure, but is **not** a distributed database/storage transaction. Runtime coordination is single-process; this diagram does not imply safe concurrent multi-node writers. Review [storage recovery](docs/OPERATIONS.md#atomically-published-package-revisions) and [mirror acceptance evidence](docs/MIRROR.md) before deploying.
+
 ## Development
 
 ```bash
@@ -63,11 +80,12 @@ dotnet test --no-build
 
 ## Security and operations
 
-Default local settings are **not** a production security baseline. In particular, an empty `ApiKey` is not proof that publishing is securely restricted. Before exposing a feed, validate authentication and publishing authorization, terminate HTTPS at a trusted proxy, restrict network access, set resource limits and test backups of **both** database and package storage. Do not assume distributed transactions across the database and file/object storage.
+Default local settings are **not sufficient for unrestricted network exposure**. In particular, an empty `ApiKey` is not proof that publishing is securely restricted. Before exposing a feed, validate authentication and publishing authorization, terminate HTTPS at a trusted proxy, restrict network access, set resource limits and test backups of **both** database and package storage. Do not assume distributed transactions across the database and file/object storage.
 
 - [Deployment, configuration, backup and recovery](docs/OPERATIONS.md)
 - [Mirror setup and limitations](docs/MIRROR.md)
-- [Roadmap and release criteria](ROADMAP.md)
+- [Roadmap and open work](ROADMAP.md)
+- [Packaging and release workflow](docs/RELEASING.md)
 - [Contributing](CONTRIBUTING.md)
 
 Report security-sensitive issues privately where feasible; do not post tokens or deployment secrets in public issues.
