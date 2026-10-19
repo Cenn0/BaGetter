@@ -51,6 +51,25 @@ Mirror__PackageSource=https://api.nuget.org/v3/index.json
 
 The mirror can cache requested package content; it is **not** a fully transparent NuGet V3 reverse proxy. Search, autocomplete, offline metadata resolution and multi-replica correctness require separate validation. See [mirror behavior and live-test evidence](docs/MIRROR.md).
 
+## Architecture and publication boundary
+
+```mermaid
+flowchart LR
+  C["NuGet clients and symbol consumers"] --> H["ASP.NET Core host / NuGet V3 API"]
+  U["Web interface"] --> H
+  H --> A["Authentication and publication policy"]
+  H --> S["Package, symbol and mirror services"]
+  S --> D[("Package metadata database")]
+  S --> F[("Package and symbol storage")]
+  S -.->|"Optional read-through on cache misses"| N["nuget.org V3 over HTTPS"]
+```
+
+The default local Docker deployment uses **SQLite plus persistent filesystem storage**; other providers require their own operational qualification. For a new upload, immutable package files are written before a metadata record points to the committed storage revision. This provides an atomic **visibility boundary**, not an ACID transaction spanning database and files or object storage. Crashes may leave unreferenced files; missing committed data requires recovery or restoration. Shared multi-writer deployments are **not validated**. See [deployment and recovery](docs/OPERATIONS.md) and the [real nuget.org mirror acceptance scope](docs/MIRROR.md).
+
+## Verification and release scope
+
+The [Linux/Windows build matrix](.github/workflows/main.yml), [live mirror smoke](.github/workflows/mirror-smoke.yml), [Docker smoke](.github/workflows/docker-smoke.yml) and [PostgreSQL smoke](.github/workflows/postgresql-smoke.yml) exercise **different** scenarios; an individual green workflow does not certify all storage providers, NuGet V3 endpoints or clients. Consult the [release procedure](docs/RELEASING.md) before using a fork-owned tag or image. Upstream releases do not automatically contain this fork's changes.
+
 ## Development
 
 ```bash
