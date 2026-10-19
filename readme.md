@@ -9,7 +9,7 @@
 
 A self-hosted **NuGet V3 package and symbol server** built with C# and ASP.NET Core. This is a community-maintained fork of [BaGetter](https://github.com/bagetter/BaGetter), originally based on [BaGet](https://github.com/loic-sharma/BaGet).
 
-> **Project status:** This fork is under development. Build images and releases from the upstream project do **not** include fork-specific changes. The optional nuget.org mirror has passed selected live smoke tests, but full NuGet protocol compatibility, multi-instance operation and production readiness have not been established.
+> **Project status:** This fork is under development. Build images and releases from the upstream project do **not** include fork-specific changes. The optional nuget.org mirror has passed selected live smoke tests, but full NuGet protocol compatibility and safe concurrent multi-instance writes have not been established. Evaluate the documented limitations for each deployment.
 
 ## Quick start
 
@@ -35,7 +35,7 @@ docker run --rm --name bagetter -p 127.0.0.1:5000:8080 \
   -v bagetter-data:/data bagetter-local:dev
 ```
 
-The `/data` volume stores packages, symbols and SQLite data. The host port is intentionally bound to loopback; these commands are for **local evaluation**, not a production deployment.
+The `/data` volume stores packages, symbols and SQLite data. The host port is intentionally bound to loopback; review TLS, access control, and data persistence before enabling network access.
 
 ## Capabilities
 
@@ -80,12 +80,12 @@ dotnet test --no-build
 
 ## Security and operations
 
-Default local settings are **not** a production security baseline. In particular, an empty `ApiKey` is not proof that publishing is securely restricted. Before exposing a feed, validate authentication and publishing authorization, terminate HTTPS at a trusted proxy, restrict network access, set resource limits and test backups of **both** database and package storage. Do not assume distributed transactions across the database and file/object storage.
+Default local settings are **not sufficient for unrestricted network exposure**. In particular, an empty `ApiKey` is not proof that publishing is securely restricted. Before exposing a feed, validate authentication and publishing authorization, terminate HTTPS at a trusted proxy, restrict network access, set resource limits and test backups of **both** database and package storage. Do not assume distributed transactions across the database and file/object storage.
 
 - [Deployment, configuration, backup and recovery](docs/OPERATIONS.md)
 - [Mirror setup and limitations](docs/MIRROR.md)
-- [Roadmap and release criteria](ROADMAP.md)
-- [Fork-specific release procedure](docs/RELEASING.md)
+- [Roadmap and open work](ROADMAP.md)
+- [Packaging and release workflow](docs/RELEASING.md)
 - [Contributing](CONTRIBUTING.md)
 
 Report security-sensitive issues privately where feasible; do not post tokens or deployment secrets in public issues.
