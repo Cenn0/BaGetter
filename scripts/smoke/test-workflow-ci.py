@@ -8,15 +8,13 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github" / "workflows"
-PINNED_WORKFLOWS = (
-    "main.yml",
-    "deploy_docs.yml",
-    "docker-smoke.yml",
-    "mirror-smoke.yml",
-    "postgresql-smoke.yml",
-    "release-helm.yml",
-)
-PINNED_ACTIONS = {"actions/checkout", "actions/setup-dotnet", "actions/setup-node"}
+def is_immutable_action_ref(ref: str) -> bool:
+    """Only repository-local actions or digest/SHA-pinned remote actions are allowed."""
+    if ref.startswith("./"):
+        return True
+    if ref.startswith("docker://"):
+        return bool(re.fullmatch(r"docker://[^@\s]+@sha256:[0-9a-f]{64}", ref))
+    return bool(re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_./-]+@[0-9a-f]{40}", ref))
 
 
 class WorkflowSafetyTests(unittest.TestCase):
@@ -29,21 +27,28 @@ class WorkflowSafetyTests(unittest.TestCase):
         main = (WORKFLOWS / "main.yml").read_text(encoding="utf-8")
         self.assertRegex(main, r"(?m)^permissions:\s*\n  contents: read\s*$")
 
-    def test_common_actions_are_sha_pinned(self):
+    def test_every_remote_action_is_immutable(self):
         inspected = 0
-        for name in PINNED_WORKFLOWS:
-            path = WORKFLOWS / name
-            with self.subTest(workflow=name):
-                content = path.read_text(encoding="utf-8")
-                for line_no, line in enumerate(content.splitlines(), start=1):
-                    match = re.match(
-                        r"\s*-?\s*uses:\s*([\w./-]+)@([^\s#]+)", line
-                    )
-                    if match and match.group(1) in PINNED_ACTIONS:
-                        inspected += 1
-                        with self.subTest(workflow=name, line=line_no):
-                            self.assertRegex(match.group(2), r"\A[0-9a-f]{40}\Z")
-        self.assertGreater(inspected, 0, "No pinned actions were inspected")
+        for path in sorted(WORKFLOWS.iterdir()):
+            if path.suffix not in {".yml", ".yaml"}:
+                continue
+            for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                match = re.match(r"^\\s*(?:-\\s*)?uses:\\s*(\\S+)", line)
+                if not match:
+                    continue
+                ref = match.group(1).strip("'\\\"")
+                with self.subTest(workflow=path.name, line=line_no, action=ref):
+                    self.assertTrue(is_immutable_action_ref(ref), "Action must use an immutable SHA or digest")
+                inspected += 1
+        self.assertGreater(inspected, 0, "No action references were inspected")
+
+    def test_mutable_action_tags_are_rejected(self):
+        for ref in ("docker/login-action@v3", "azure/setup-helm@v4.3.0",
+                    "actions/checkout@main", "docker://alpine:latest"):
+            with self.subTest(ref=ref):
+                self.assertFalse(is_immutable_action_ref(ref))
+        self.assertTrue(is_immutable_action_ref("docker/login-action@" + "a" * 40))
+        self.assertTrue(is_immutable_action_ref("docker://alpine@sha256:" + "a" * 64))
 
 
 if __name__ == "__main__":
