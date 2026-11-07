@@ -38,8 +38,8 @@ jobs:
     env:
       PG_CONNECTION: "Host=127.0.0.1;Port=5432;Database=bagetter_ci;Username=bagetter;Password=postgres_ci_test"
     steps:
-      - uses: actions/checkout@v4.2.2
-      - uses: actions/setup-dotnet@v4.3.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
           global-json-file: global.json
       - name: Build production server
