@@ -8,6 +8,8 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github" / "workflows"
+
+
 def is_immutable_action_ref(ref: str) -> bool:
     """Only repository-local actions or digest/SHA-pinned remote actions are allowed."""
     if ref.startswith("./"):
@@ -33,10 +35,10 @@ class WorkflowSafetyTests(unittest.TestCase):
             if path.suffix not in {".yml", ".yaml"}:
                 continue
             for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-                match = re.match(r"^\\s*(?:-\\s*)?uses:\\s*(\\S+)", line)
+                match = re.match(r"^\s*(?:-\s*)?uses:\s*(\S+)", line)
                 if not match:
                     continue
-                ref = match.group(1).strip("'\\\"")
+                ref = match.group(1).strip("'\"")
                 with self.subTest(workflow=path.name, line=line_no, action=ref):
                     self.assertTrue(is_immutable_action_ref(ref), "Action must use an immutable SHA or digest")
                 inspected += 1
