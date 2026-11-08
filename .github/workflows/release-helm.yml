@@ -16,9 +16,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install Helm
-        uses: azure/setup-helm@v4.3.0
+        uses: azure/setup-helm@b9e51907a09c216f16ebe8536097933489208112 # v4.3.0
       - name: Resolve chart dependencies
         run: helm dependency update "deployment templates/chart/bagetter"
       - name: Lint Helm chart
